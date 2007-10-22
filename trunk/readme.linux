@@ -1,0 +1,32 @@
+Instalacion de bck para LINUX
+-----------------------------
+
+comprobar la ruta y disponibilidad de los siguientes paquetes (con 'which [commando]'):
+	
+	tar
+	mt
+	smbclient
+	smbmount
+	smbumount
+	cdrecord
+	mkisofs
+	rsync
+
+Comprabar la disponibilidad del paquete : dvd+rw-tools
+	
+	commandos que se usan son: dvd+rw-format y growisofs
+
+Bajar archivos del ftp
+
+(como root)
+
+Configuracion
+-------------
+
+Abrir archivo bck.config, todo esta explicado ahi con ejemplos
+
+>vim /etc/bck/bck.config
+
+Insertar lineas en crontab con :
+>crontab -e
+30 23 * * 1-5 /usr/local/sbin/bck --do=seccion1,seccion2
