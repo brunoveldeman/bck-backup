@@ -1,0 +1,35 @@
+Instalacion de bck para CYGWIN
+------------------------------
+
+Instalar cygwin con los paquetes por defecto mas los siguientes:
+
+	diffutils
+	gnupg
+	mc
+	mt
+	rsync
+	tar
+	wget
+
+comprobar la ruta y disponibilidad de los siguientes paquetes (con 'which [commando]'):
+	
+
+Comprabar la disponibilidad del paquete : dvd+rw-tools
+	
+	commandos que se usan son: dvd+rw-format y growisofs
+
+Bajar archivos del ftp
+
+Configuracion
+-------------
+
+Abrir archivo bck.config, todo esta explicado ahi con ejemplos
+
+cdrecord bajo cygwin usa bus address como device, en lugar de /dev/cdrom hay que poner 1,1,0
+para saber el numero en cada caso, usa cdrecord -scanbus
+
+>vim /etc/bck/bck.config
+
+crear tarea programada
+
+ejecutar -> C:\cygwin\bin\bash --login -i -c "/usr/local/bin --do=seccion1,seccion2"
