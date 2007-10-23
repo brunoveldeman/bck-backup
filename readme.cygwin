@@ -63,40 +63,73 @@ bck-backup for cygwin [English]
     
     A sample file called bck.bat is included.
     
+    From the Task Scheduler, we ejecute bck.bat at the day and time we want.
+    Several batch file will have to be created for different different sections
+    to execute.
+    
 
+-----------------------------------
+bck-backup para CYGWIN [Castellano]
+-----------------------------------
 
-Instalacion de bck para CYGWIN
-------------------------------
+1. Instalacion de cygwin
 
-Instalar cygwin con los paquetes por defecto mas los siguientes:
+1.1 Instalar cygwin con los paquetes por defecto mas los siguientes:
 
-	diffutils
 	gnupg
-	mc
 	mt
 	rsync
 	tar
-	wget
 
-comprobar la ruta y disponibilidad de los siguientes paquetes (con 'which [commando]'):
-	
-
-Comprabar la disponibilidad del paquete : dvd+rw-tools
+1.2 Buscar la version para cygwin de dvd+rw-tools
 	
 	commandos que se usan son: dvd+rw-format y growisofs
 
-Bajar archivos del ftp
+2. Copiar archivos.
 
-Configuracion
--------------
+2.1 Archivo de programa.
 
-Abrir archivo bck.config, todo esta explicado ahi con ejemplos
+    Copia bck en /usr/local/bin
+    
+2.2 Archivo de configuracion.
 
-cdrecord bajo cygwin usa bus address como device, en lugar de /dev/cdrom hay que poner 1,1,0
-para saber el numero en cada caso, usa cdrecord -scanbus
+    Crear un directorio con el nombre bck en /etc
+    Copiar el archivo de configuracion en /etc/bck/
+    
+3. Configurar bck-backup.
 
->vim /etc/bck/bck.config
+    Abre el arvhivo bck con un editor de texto y configura el servidor SMTP
+    que va usar y su usuario y password.
+    El archivo de configuracion tiene ejemplos para cada tipo de copia.
+    Compruebe la estructura del archivo de configuracion con
+    
+	#>bck --check
+	
+    Si hay errores, saldran.
+    
+4. Probar configuracion.
 
-crear tarea programada
+    Es buena idea probar la configuracion.
+    Con la opcion --debug, bck-backup imprimira en pantalla el progreso de la copia.
+    
+    Para ejecutar la seccion "test" configurada, usa --do=test
+    Puede poner una serie de secciones en una linea, --do=test,section1,section2
+    seran ejecutadas en el mismo orden.
+    
+    Si quiere usar otro archivo de configuracion, y no el que esta en /etc/bck/bck.config,
+    se puede con la opcion --config-file=/my/path/my.config.file
+    
+5. Anadir una Tarea Programada de windows
 
-ejecutar -> C:\cygwin\bin\bash --login -i -c "/usr/local/bin --do=seccion1,seccion2"
+    Windows parece tener algun problema si queremos llamar directamente a bck-backup,
+    asi que tenemos que crear un batch que llama a cygwin y bck-backup.
+    
+    Crea un archivo bck.bat y anade la siguiente linea:
+    
+    >C:\cygwin\bin\bash --login -i -c "/usr/local/bin --do=section1,section2"
+    (Cambie section1 y section2 para sus necesidades)
+    
+    Un ejemplo bck.bat se ha incluido.
+    
+    Desde las Tareas Programadas llamamos a el archivo bck.bat al dia y la hora que queramos.
+    Para diferentes configuraciones tendremos que crear archivos .bat separadas.
