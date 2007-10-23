@@ -1,3 +1,70 @@
+-------------------------------
+bck-backup for cygwin [English]
+-------------------------------
+
+1. Cygwin instalation.
+    
+1.1 Install cygwin adding the following packages to the default packages:
+
+    gnupg
+    mt
+    rsync
+    tar
+    cdrecord
+
+1.2 Find the cygwin version for the package dvd+rw-tools if you want to write to DVD
+    
+    We will use dvd+rw-format and growisofs to write DVD and DVD-RW medium.
+    
+2. Copy files.
+
+2.1 Program file.
+
+    Copy bck to /usr/local/bin
+    
+2.2 Config file.
+
+    Create a directory called bck in /etc
+    Copy the config file bck.config to /etc/bck/
+    
+3. Configure bck-backup.
+
+    Open the program file and configure the SMTP server you want to use and
+    the username and password.
+    The config file that comes by default has sample for each type of copy.
+    Check config file structure with 
+    
+	#>bck --check
+	
+    Any errors should be reported.
+    
+4. Test configuration.
+
+    It's always a good idea to test.
+    You can run bck-backup from command line with the --debug option to to get
+    information on the progress of the copy.
+    
+    To run a configured section named "test", use --do=test
+    You can put several sections on one line, --do=test,section1,section2
+    these will be executed in this order.
+    
+    You can tell bck-backup to use a config file other then /etc/bck/bck.config,
+    with the option --config-file=/my/path/my.config.file
+    
+5. Add entry to windows' Task Scheduler
+
+    For some reason windows can't call bck-backup directly, so you have to create
+    a batch file that does the call to cygwin and bck-backup.
+    
+    In the batch file, type the following line:
+    
+    >C:\cygwin\bin\bash --login -i -c "/usr/local/bin --do=section1,section2"
+    (Change section1 and section2 to fit your needs)
+    
+    A sample file called bck.bat is included.
+    
+
+
 Instalacion de bck para CYGWIN
 ------------------------------
 

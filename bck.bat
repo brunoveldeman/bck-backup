@@ -1,0 +1,1 @@
+C:\cygwin\bin\bash --login -i -c "/usr/local/bin/bck --config-file=/etc/bck/bck.config --do=section1,section2"
