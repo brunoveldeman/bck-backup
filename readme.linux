@@ -1,32 +1,118 @@
-Instalacion de bck para LINUX
------------------------------
+-------------------------------
+bck-backup for Linux [English]
+-------------------------------
 
-comprobar la ruta y disponibilidad de los siguientes paquetes (con 'which [commando]'):
+1. Linux instalation.
+    
+1.1 Install the following packages:
+
+    gnupg
+    mt
+    rsync
+    tar
+    cdrecord
+    dvd+rw-tools
+    
+2. Copy files.
+
+2.1 Program file.
+
+    Copy bck to /usr/local/sbin
+    
+2.2 Config file.
+
+    Create a directory called bck in /etc
+    Copy the config file bck.config to /etc/bck/
+        
+3. Configure bck-backup.
+
+    Open the program file and configure the SMTP server you want to use and
+    the username and password.
+    The config file that comes by default has sample for each type of copy.
+    Check config file structure with 
+    
+	#>bck --check
 	
-	tar
+    Any errors should be reported.
+    
+4. Test configuration.
+
+    It's always a good idea to test.
+    You can run bck-backup from command line with the --debug option to to get
+    information on the progress of the copy.
+    
+    To run a configured section named "test", use --do=test
+    You can put several sections on one line, --do=test,section1,section2
+    these will be executed in this order.
+    
+    You can tell bck-backup to use a config file other then /etc/bck/bck.config,
+    with the option --config-file=/my/path/my.config.file
+    
+5. Add entry to crontab
+
+    To change the crontab, use :
+    
+    #>crontab -e
+	
+    To run the job from Monday to Friday on 23:30, add the following line
+
+	30 23 * * 1-5 /usr/local/sbin/bck --do=seccion1,seccion2
+    
+
+-----------------------------------
+bck-backup para Linux [Castellano]
+-----------------------------------
+
+1. Instalacion de Linux
+
+1.1 Instalar los paquetes siguientes:
+
+	gnupg
 	mt
-	smbclient
-	smbmount
-	smbumount
-	cdrecord
-	mkisofs
 	rsync
+	tar
+	dvd+rw-tools
 
-Comprabar la disponibilidad del paquete : dvd+rw-tools
+2. Copiar archivos.
+
+2.1 Archivo de programa.
+
+    Copia bck en /usr/local/sbin
+    
+2.2 Archivo de configuracion.
+
+    Crear un directorio con el nombre bck en /etc
+    Copiar el archivo de configuracion en /etc/bck/
+    
+3. Configurar bck-backup.
+
+    Abre el arvhivo bck con un editor de texto y configura el servidor SMTP
+    que va usar y su usuario y password.
+    El archivo de configuracion tiene ejemplos para cada tipo de copia.
+    Compruebe la estructura del archivo de configuracion con
+    
+	#>bck --check
 	
-	commandos que se usan son: dvd+rw-format y growisofs
+    Si hay errores, saldran.
+    
+4. Probar configuracion.
 
-Bajar archivos del ftp
+    Es buena idea probar la configuracion.
+    Con la opcion --debug, bck-backup imprimira en pantalla el progreso de la copia.
+    
+    Para ejecutar la seccion "test" configurada, usa --do=test
+    Puede poner una serie de secciones en una linea, --do=test,section1,section2
+    seran ejecutadas en el mismo orden.
+    
+    Si quiere usar otro archivo de configuracion, y no el que esta en /etc/bck/bck.config,
+    se puede con la opcion --config-file=/my/path/my.config.file
+    
+5. Anadir linea a crontab
 
-(como root)
+    Insertar lineas en crontab con :
+    
+    #>crontab -e
+	
+    Para ejecutar cada lunes a viernes a las 23:30 anade la siguiente linea
 
-Configuracion
--------------
-
-Abrir archivo bck.config, todo esta explicado ahi con ejemplos
-
->vim /etc/bck/bck.config
-
-Insertar lineas en crontab con :
->crontab -e
-30 23 * * 1-5 /usr/local/sbin/bck --do=seccion1,seccion2
+	30 23 * * 1-5 /usr/local/sbin/bck --do=seccion1,seccion2

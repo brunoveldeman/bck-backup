@@ -1,6 +1,9 @@
 #! /usr/bin/perl --
-# Backup script.
-# Mantenimiento : Bruno
+# bck-backup.
+# Written by : Bruno Veldeman
+#
+# To simplify use, some modules have been copied, this way no extra modules have to be installed.
+# I'll check these modules from time to time to ensure they stay more or less up to date.
 #
 ############################################################################
 #                                                                          #
@@ -531,7 +534,7 @@ sub new
 	my ($class) = shift;
 	my ($configfilename) =  $cmdln->GetConfigFileName();
 	my ($lang,$client,$sysloglevel,$winmsg,$mt,$tar,$smbmount,$smbumount,$smbclient,
-		$sudo,$rsync,$dvdrecord,$dvdformat,$cdrecord);
+		$sudo,$rsync,$dvdrecord,$dvdformat,$cdrecord,$gpg);
 	if (-r $configfilename )
 	{
 		my $cfg 	= Config::IniFiles->new( -file => $configfilename );
@@ -553,6 +556,7 @@ sub new
 		$dvdrecord	= $cfg->val('global', 'dvdrecord');
 		$dvdformat	= $cfg->val('global', 'dvdformat');
 		$cdrecord	= $cfg->val('global', 'cdrecord');
+		$gpg		= $cfg->val('global', 'gpg');
 	};
 	my $self =
 	{
@@ -570,6 +574,7 @@ sub new
 		_cdrecord		=> $cdrecord,
 		_dvdrecord	=> $dvdrecord,
 		_dvdformat	=> $dvdformat,
+		_gpg		=> $gpg,
 	};
 	bless $self, $class;
 	return $self;
@@ -658,6 +663,12 @@ sub GetCdRecord
 	my ( $self ) = shift;
 	return $self->{_cdrecord};
 };
+#accessor method for gpg
+sub GetGpg 
+{
+	my ( $self ) = shift;
+	return $self->{_gpg};
+};
 # Sub CheckConfig:
 sub CheckConfig # () -> (@log)
 {
@@ -687,20 +698,20 @@ sub new
 	my ($class) = shift;
 	my $self =
 	{
-        _section 	=> undef,
-        _name 	 	=> undef,
+    		_section 	=> undef,
+		_name 	 	=> undef,
 		_type		=> undef,
 		_sourcelist	=> undef,
-		_excludelist => undef,
+		_excludelist 	=> undef,
 		_dest		=> undef,
 		_cmd		=> undef,
 		_maxsize	=> undef,
 		_user		=> undef,
 		_pass		=> undef,
 		_log		=> [],
-       	_status   	=> undef,
-		_medium => undef,
-       	_size       	=> 0,
+           	_status   	=> undef,
+		_medium 	=> undef,
+	   	_size       	=> 0,
 		_flagsize	=> undef,
 		_flagfail	=> undef
     	};
@@ -718,13 +729,13 @@ sub LoadSection
 		$self->{_name}		= $cfg->val($self->{_section}, 'name');
 		$self->{_type}		= $cfg->val($self->{_section}, 'type');
 		$self->{_sourcelist}	= $cfg->val($self->{_section}, 'sourcelist');
-		$self->{_excludelist} 	= $cfg->val($self->{_section},'excludelist');
+		$self->{_excludelist} 	= $cfg->val($self->{_section}, 'excludelist');
 		$self->{_dest}		= $cfg->val($self->{_section}, 'dest');
 		$self->{_maxsize}	= $cfg->val($self->{_section}, 'maxsize');
 		$self->{_cmd}		= $cfg->val($self->{_section}, 'cmd');
 		$self->{_user}		= $cfg->val($self->{_section}, 'user');
 		$self->{_pass}		= $cfg->val($self->{_section}, 'pass');
-		$self->{_medium} = $cfg->val($self->{_section},'medium');
+		$self->{_medium} 	= $cfg->val($self->{_section}, 'medium');
 		return (0);
 	}
 	else
