@@ -28,7 +28,7 @@ use strict;
 use English;
 
 # Version del programma
-my($version) = "2.0.6";
+my($version) = "2.0.7 Test";
 my($state);
 my $cmdln =  eval { new CommandLine(); }  or die ($@);
 $cmdln->ParseCommandLine();
@@ -1837,6 +1837,10 @@ sub MailReport
 	# Attach log as a file.
 	#
 	$sm->Inline("log.txt", \$log);
+	#
+	# Attach config file.
+	#
+	$sm->Attach( $configfilename );
 	#
 	# Check if the mail sent successfully or not.
 	#
