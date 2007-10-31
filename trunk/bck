@@ -33,12 +33,6 @@ my($state);
 my $cmdln =  eval { new CommandLine(); }  or die ($@);
 $cmdln->ParseCommandLine();
 
-# Smtp account info
-my ( $smtpserver ); 
-my ( $smtpuser );
-my ( $smtppass );
-my ( $smtpfrom );
-
 # Look for flags
 if ($cmdln->GetHelpFlag)
 {
@@ -1779,10 +1773,10 @@ sub MailReport
 	my ( $rc, $plain, $html ,$body );
 	my ($configfilename) =  $cmdln->GetConfigFileName();
 	my $cfg = Config::IniFiles->new( -file => $configfilename );
-	$smtpserver	= $cfg->val('global', 'smtpserver');
-	$smtpuser	= $cfg->val('global', 'smtpuser');
-	$smtppass	= $cfg->val('global', 'smtppass');
-	$smtpfrom 	= $cfg->val('global', 'smtpfrom');
+	my ($smtpserver)	= $cfg->val('global', 'smtpserver');
+	my ($smtpuser)	= $cfg->val('global', 'smtpuser');
+	my ($smtppass)	= $cfg->val('global', 'smtppass');
+	my ($smtpfrom) 	= $cfg->val('global', 'smtpfrom');
 	#my ( $boundary ) = "====" . time() . "====";
 	$plain =  $msgplain;
 	$html =  $msghtml;
