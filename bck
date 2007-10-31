@@ -26,17 +26,19 @@
 use warnings;
 use strict;
 use English;
-# Smtp account info
-REMOVE THIS LINE WHEN CONFIGURED!!!
-my ( $smtpserver ) = "your.smtp.server.here"; 
-my ( $smtpuser ) = 'your@email.account.name';
-my ( $smtppass ) = "yourPASSWORD";
-my ( $smtpfrom ) = 'Your from line here <your@email>';
+
 # Version del programma
 my($version) = "2.0.6";
 my($state);
 my $cmdln =  eval { new CommandLine(); }  or die ($@);
 $cmdln->ParseCommandLine();
+
+# Smtp account info
+my ( $smtpserver ); 
+my ( $smtpuser );
+my ( $smtppass );
+my ( $smtpfrom );
+
 # Look for flags
 if ($cmdln->GetHelpFlag)
 {
@@ -1775,14 +1777,19 @@ sub MailReport
 	my ( $self ) = shift;
 	my ( $mailaddr, $subject, $msghtml, $msgplain, $state, $log ) = @_;
 	my ( $rc, $plain, $html ,$body );
+	my ($configfilename) =  $cmdln->GetConfigFileName();
+	my $cfg = Config::IniFiles->new( -file => $configfilename );
+	$smtpserver	= $cfg->val('global', 'smtpserver');
+	$smtpuser	= $cfg->val('global', 'smtpuser');
+	$smtppass	= $cfg->val('global', 'smtppass');
+	$smtpfrom 	= $cfg->val('global', 'smtpfrom');
 	#my ( $boundary ) = "====" . time() . "====";
 	$plain =  $msgplain;
 	$html =  $msghtml;
-	my $sm = SendMail->new("mail.grn.es", 25);
+	my $sm = SendMail->new($smtpserver, 25);
 	#
 	#
 	# Set SMTP AUTH login profile.
-	# Uncomment the following line if you like to try SMTP AUTH.
 	#
 	#sm->setAuth($sm->AUTHLOGIN, $smtpuser , $smtppass);
 	$sm->setAuth($sm->AUTHPLAIN, $smtpuser , $smtppass );
@@ -1793,7 +1800,7 @@ sub MailReport
 	#
 	# We set the sender.
 	#
-	$sm->From('"Backup Script" <bck@com-tech.es>');
+	$sm->From($smtpfrom);
 	#
 	# We set the subject.
 	#
@@ -1807,10 +1814,10 @@ sub MailReport
 	#
 	#$obj->setMailHeader($mailheader, $mailheadervalue);
 	#$sm->setMailHeader('content-type', "multipart/alternative; boundary=\"$boundary\"");
-	if ( $state != 0 )
-		{
-		$sm->setMailHeader('X-Priority', "1 (Highest)");
-		};
+	#if ( $state != 0 )
+	#	{
+	#	$sm->setMailHeader('X-Priority', "1 (Highest)");
+	#	};
 	$sm->setMailHeader('X-Mailer', "bck [mailobject " . $sm->version . "]");
 	$sm->setMailHeader('User-Agent', "bck [$version]");
 	#
