@@ -12,6 +12,7 @@ bck-backup for Linux [English]
     tar
     cdrecord
     dvd+rw-tools
+    perl
     
 2. Copy files.
 
@@ -71,8 +72,10 @@ bck-backup para Linux [Castellano]
 	mt
 	rsync
 	tar
+	cdrecord
 	dvd+rw-tools
-
+	perl
+	
 2. Copiar archivos.
 
 2.1 Archivo de programa.
@@ -93,7 +96,7 @@ bck-backup para Linux [Castellano]
     
 	#>bck --check
 	
-    Si hay errores, saldran.
+    Si hay errores, se listan.
     
 4. Probar configuracion.
 

@@ -10,12 +10,18 @@ bck-backup for cygwin [English]
     mt
     rsync
     tar
-    cdrecord
+    perl
+    
 
 1.2 Find the cygwin version for the package dvd+rw-tools if you want to write to DVD
     
     We will use dvd+rw-format and growisofs to write DVD and DVD-RW medium.
     
+1.3 Find de cygwin version for the package cdrecord if you want to write to CD or DVD
+
+    We will use cdrecord to open and close the tray and to write CD's
+    (I could not find an "eject" for cygwin :S )
+
 2. Copy files.
 
 2.1 Program file.
@@ -80,10 +86,16 @@ bck-backup para cygwin [Castellano]
 	mt
 	rsync
 	tar
+	perl
 
 1.2 Buscar la version para cygwin de dvd+rw-tools
 	
-	commandos que se usan son: dvd+rw-format y growisofs
+	Commandos que se usan son: dvd+rw-format y growisofs
+	
+1.3 Buscar la version para cygwin de cdrecord
+
+	Usamos cdrecord para abrir y cerrar la bandeja y para grabar cd's
+	(En cygwin no parece haber "eject" :S)
 
 2. Copiar archivos.
 
@@ -105,7 +117,7 @@ bck-backup para cygwin [Castellano]
     
 	#>bck --check
 	
-    Si hay errores, saldran.
+    Si hay errores, se listan.
     
 4. Probar configuracion.
 
