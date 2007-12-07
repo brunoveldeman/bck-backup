@@ -290,6 +290,7 @@ sub CheckConfig # ($configfilename) -> ()
 {
 	my ( $configfile ) = @_;
 	my ( $line );
+	use Socket;
 	print "bck version : $version\n";
 	print "   Checking configuration file...\n";
 	if (-r $configfile )
@@ -328,6 +329,7 @@ sub CheckConfig # ($configfilename) -> ()
 			my ($smtpuser)	= $cfg->val('global', 'smtpuser');
 			my ($smtppass)	= $cfg->val('global', 'smtppass');
 			my ($smtpfrom) 	= $cfg->val('global', 'smtpfrom');
+			# Tests			
 			if ( defined $lang)
 			{
 				print "     lang ok.\n";
@@ -538,6 +540,65 @@ sub CheckConfig # ($configfilename) -> ()
 			else	
 			{
 				print "    #gpg not defined\n";
+			};
+			if ( defined $smtpserver )
+			{
+				my ( $iaddr, $paddr, $proto );
+			    if ( $iaddr  = inet_aton($smtpserver) )
+				{
+					#It worked
+					$paddr = sockaddr_in(25, $iaddr);
+					$proto = getprotobyname('tcp');
+					if ( socket(SOCK, PF_INET, SOCK_STREAM, $proto) )
+					{
+						#It worked
+						if ( connect(SOCK, $paddr) )
+						{
+							print "     smtpserver ok.\n";
+						}
+						else
+						{
+							print "    #Error in connecting to $smtpserver at port 25: $!\n";
+						}
+						close(SOCK);
+					}
+					else
+					{
+						print "    #Socket error: $!\n";
+					};
+				}
+				else
+				{
+					print "    #host $smtpserver not responding, check your config file.\n";
+				};
+			}
+			else	
+			{
+				print "    #smtpserver not defined\n";
+			};
+			if ( defined $smtpuser)
+			{
+				print "     smtpuser ok.\n";
+			}
+			else	
+			{
+				print "    #smtpuser not defined\n";
+			};
+			if ( defined $smtppass)
+			{
+				print "     smtppass ok.\n";
+			}
+			else	
+			{
+				print "    #smtppass not defined\n";
+			};
+			if ( defined $smtpfrom)
+			{
+				print "     smtpfrom ok.\n";
+			}
+			else	
+			{
+				print "    #smtpfrom not defined\n";
 			};
 		};
 	};
