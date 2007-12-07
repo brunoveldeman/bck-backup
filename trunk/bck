@@ -28,7 +28,7 @@ use strict;
 use English;
 
 # Version del programma
-my($version) = "2.0.7 Test";
+my($version) = "2.0.7 Unstable Testing";
 my($state);
 my $cmdln =  eval { new CommandLine(); }  or die ($@);
 $cmdln->ParseCommandLine();
@@ -292,23 +292,256 @@ sub CheckConfig # ($configfilename) -> ()
 	my ( $line );
 	print "bck version : $version\n";
 	print "   Checking configuration file...\n";
-	my $cfg = Config::IniFiles->new( -file => $configfile );
-	unless ($cfg)
+	if (-r $configfile )
 	{
-	    print "   Error in loading configuration file `$configfile'\n";
-	    foreach $line ( @Config::IniFiles::errors )
-	    {
-		print "      $line .\n";
-	    };
-	}
-	else
-	{
-	    print "   Configuration file structure OK.\n";
-	    #print "   Checking configuration.\n";
-	    
+		my $cfg = Config::IniFiles->new( -file => $configfile );
+		unless ($cfg)
+		{
+		    print "   Error in loading configuration file `$configfile'\n";
+		    foreach $line ( @Config::IniFiles::errors )
+		    {
+			print "      $line .\n";
+		    };
+		}
+		else
+		{
+		    print "   Configuration file structure OK.\n";
+		    print "   Checking configuration.\n";
+		    print "   Global variables :\n";
+			my ($lang)		= $cfg->val('global', 'lang');
+			
+			my ($client)		= $cfg->val('global', 'client');
+			my ($sysloglevel)	= $cfg->val('global', 'sysloglevel');
+			my ($winmsg)		= $cfg->val('global', 'winmsg');
+			my ($mt)		= $cfg->val('global', 'mt');
+			my ($tar)		= $cfg->val('global', 'tar');
+			my ($smbmount)	= $cfg->val('global', 'smbmount');
+			my ($smbumount)	= $cfg->val('global', 'smbumount');
+			my ($smbclient)	= $cfg->val('global', 'smbclient');
+			my ($sudo)		= $cfg->val('global', 'sudo');
+			my ($rsync)		= $cfg->val('global', 'rsync');
+			my ($dvdrecord)	= $cfg->val('global', 'dvdrecord');
+			my ($dvdformat)	= $cfg->val('global', 'dvdformat');
+			my ($cdrecord)	= $cfg->val('global', 'cdrecord');
+			my ($gpg)		= $cfg->val('global', 'gpg');
+			my ($smtpserver)	= $cfg->val('global', 'smtpserver');
+			my ($smtpuser)	= $cfg->val('global', 'smtpuser');
+			my ($smtppass)	= $cfg->val('global', 'smtppass');
+			my ($smtpfrom) 	= $cfg->val('global', 'smtpfrom');
+			if ( defined $lang)
+			{
+				print "     lang ok.\n";
+			}
+			else	
+			{
+				print "    #lang not defined\n";
+			};
+			if ( defined $client)
+			{
+				print "     client ok.\n";
+			}
+			else	
+			{
+				print "    #client not defined\n";
+			};
+			if ( defined $sysloglevel)
+			{
+				if ( ($sysloglevel >= 0) and ($sysloglevel <= 5) )
+				{
+					print "     sysloglevel ok.\n";
+				}
+				else
+				{
+					print "    #sysloglevel out of range\n";
+				}
+			}
+			else	
+			{
+				print "    #sysloglevel not defined\n";
+			};
+			if ( defined $winmsg)
+			{
+				if ( ($winmsg eq "yes") or ($winmsg eq "no") )
+				{
+					print "     winmsg ok.\n";
+				}
+				else
+				{
+					print "    #winmsg out of range\n";
+				}
+			}
+			else	
+			{
+				print "    #winmsg not defined\n";
+			};
+			if ( defined $mt)
+			{
+				if ( -x ($mt) )
+				{
+					print "     mt ok.\n";
+				}
+				else
+				{
+					print "    #mt path/permission error\n";
+				}
+			}
+			else	
+			{
+				print "    #mt not defined\n";
+			};
+			if ( defined $tar )
+			{
+				if ( -x ($tar) )
+				{
+					print "     tar ok.\n";
+				}
+				else
+				{
+					print "    #tar path/permission error\n";
+				}
+			}
+			else	
+			{
+				print "    #tar not defined\n";
+			};
+			if ( defined $smbmount ) 
+			{
+				if ( -x ($smbmount) )
+				{
+					print "     smbmount ok.\n";
+				}
+				else
+				{
+				print "    #smbmount path/permission error\n";
+				}
+			}
+			else	
+			{
+				print "    #smbmount not defined\n";
+			};
+			if ( defined $smbumount ) 
+			{
+				if ( -x ($smbumount) )
+				{
+					print "     smbumount ok.\n";
+				}
+				else
+				{
+					print "    #smbumount path/permission error\n";
+				}
+			}
+			else	
+			{
+				print "    #smbumount not defined\n";
+			};
+			if ( defined $smbclient ) 
+			{
+				if ( -x ($smbclient) )
+				{
+					print "     smbclient ok.\n";
+				}
+				else
+				{
+					print "    #smbclient path/permission error\n";
+				}
+			}
+			else	
+			{
+				print "    #smbclient not defined\n";
+			};
+			if ( defined $sudo)
+			{
+				if ( -x ($sudo) )
+				{
+					print "     sudo ok.\n";
+				}
+				else
+				{
+					print "    #sudo path/permission error\n";
+				}
+			}
+			else	
+			{
+				print "    #sudo not defined\n";
+			};
+			if ( defined $rsync )
+			{
+				if ( -x ($rsync) )
+				{
+					print "     rsync ok.\n";
+				}
+				else
+				{
+					print "    #rsync path/permission error\n";
+				}
+			}
+			else	
+			{
+				print "    #rsync not defined\n";
+			};
+			if ( defined $cdrecord )
+			{
+				if ( -x ($cdrecord) )
+				{
+					print "     cdrecord ok.\n";
+				}
+				else
+				{
+					print "    #cdrecord path/permission error\n";
+				}
+			}
+			else	
+			{
+				print "    #cdrecord not defined\n";
+			};
+			if ( defined $dvdrecord )
+			{
+				if ( -x ($dvdrecord) )
+				{
+					print "     dvdrecord ok.\n";
+				}
+				else
+				{
+					print "    #dvdrecord path/permission error\n";
+				}
+			}
+			else	
+			{
+				print "    #dvdrecord not defined\n";
+			};
+			if ( defined $dvdformat )
+			{
+				if ( -x ($dvdformat) )
+				{
+					print "     dvdformat ok.\n";
+				}
+				else
+				{
+					print "    #dvdformat path/permission error\n";
+				}
+			}
+			else	
+			{
+				print "    #dvdformat not defined\n";
+			};
+			if ( defined $gpg )
+			{
+				if ( -x ($gpg) )
+				{
+					print "     gpg ok.\n";
+				}
+				else
+				{
+					print "    #gpg path/permission error\n";
+				}
+			}
+			else	
+			{
+				print "    #gpg not defined\n";
+			};
+		};
 	};
 };
-
 
 ##################################################################################
 #
@@ -666,19 +899,6 @@ sub GetGpg
 {
 	my ( $self ) = shift;
 	return $self->{_gpg};
-};
-# Sub CheckConfig:
-sub CheckConfig # () -> (@log)
-{
-	my ( $self ) = shift;
-	my ( @log , $status );
-	$status = 0;
-	if ( not (-x $self->{_mt}))
-	{
-		$self->{_mt} = 'tar' ;
-		$status++;
-	};
-	return ($status, @log);
 };
 ##################################################################################
 # End Class GlobalSection
