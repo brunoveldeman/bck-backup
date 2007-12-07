@@ -283,7 +283,7 @@ sub GetTime # () -> (mytime)
 };
 ##################################################################################
 #
-# Sub Check :
+# Sub CheckConfig :
 #
 ##################################################################################
 sub CheckConfig # ($configfilename) -> ()
@@ -304,6 +304,8 @@ sub CheckConfig # ($configfilename) -> ()
 	else
 	{
 	    print "   Configuration file structure OK.\n";
+	    #print "   Checking configuration.\n";
+	    
 	};
 };
 
@@ -1838,9 +1840,9 @@ sub MailReport
 	#
 	$sm->Inline("log.txt", \$log);
 	#
-	# Attach config file.
+	# To attach config file, uncomment this.
 	#
-	$sm->Attach( $configfilename );
+	#$sm->Attach( $configfilename );
 	#
 	# Check if the mail sent successfully or not.
 	#
