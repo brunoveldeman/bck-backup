@@ -64,7 +64,7 @@ bck-backup for cygwin [English]
     
     In the batch file, type the following line:
     
-    >C:\cygwin\bin\bash --login -i -c "/usr/local/bin --do=section1,section2"
+    >C:\cygwin\bin\bash --login -i -c "/usr/local/bin/bck --do=section1,section2"
     (Change section1 and section2 to fit your needs)
     
     A sample file called bck.bat is included.
