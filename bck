@@ -151,6 +151,7 @@ sub Main
 					if ( $section->GetType() eq 'samba' )
 					{
 						if ($string =~ m/rsync error/) { $loglevel = 0;};
+						if ($string =~ m/rsync:/) { $loglevel = 3;};
 						if ($string =~ m/bytes received/) { $loglevel = 3;};
 						if ($string =~ m/total size/) { $loglevel = 3;};
 						if ($string =~ m/failed/) { $loglevel = 0;};
@@ -158,6 +159,7 @@ sub Main
 					if ( $section->GetType() eq 'local')
 					{
 						if ($string =~ m/rsync error/) { $loglevel = 0;};
+						if ($string =~ m/rsync:/) { $loglevel = 3;};
 						if ($string =~ m/bytes received/) { $loglevel = 3;};
 						if ($string =~ m/total size/) { $loglevel = 3;};
 						if ($string =~ m/failed/) { $loglevel = 0;};
@@ -165,6 +167,7 @@ sub Main
 					if ( $section->GetType() eq 'part' )
 					{
 						if ($string =~ m/rsync error/) { $loglevel = 0;};
+						if ($string =~ m/rsync:/) { $loglevel = 3;};
 						if ($string =~ m/bytes received/) { $loglevel = 3;};
 						if ($string =~ m/total size/) { $loglevel = 3;};
 						if ($string =~ m/failed/) { $loglevel = 0;};
@@ -172,6 +175,7 @@ sub Main
 					if ( $section->GetType() eq 'rsync' )
 					{
 						if ($string =~ m/rsync error/) { $loglevel = 0;};
+						if ($string =~ m/rsync:/) { $loglevel = 3;};
 						if ($string =~ m/bytes received/) { $loglevel = 3;};
 						if ($string =~ m/total size/) { $loglevel = 3;};
 						if ($string =~ m/failed/) { $loglevel = 0;};
