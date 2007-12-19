@@ -1103,40 +1103,40 @@ sub GetMaxSize
 sub CalcSize
 {
 	my ( $self ) = shift;
-	if ( defined $self->{_maxsize} )
+	if ( defined $self->{_sourcelist} )
 	{
-		if ( defined $self->{_sourcelist} )
+		my ( $excludelist ) = ' ';
+		if ( defined $self->{_excludelist} )
 		{
-			my ( $excludelist ) = ' ';
-			if ( defined $self->{_excludelist} )
+			my (@excludes ) = split(/,/,$self->{_excludelist});
+			my ( $exclude );
+			foreach $exclude (@excludes)
 			{
-				my (@excludes ) = split(/,/,$self->{_excludelist});
-				my ( $exclude );
-				foreach $exclude (@excludes)
-				{
-					$excludelist = $excludelist . ' --exclude=' . $exclude;
-				};
+				$excludelist = $excludelist . ' --exclude=' . $exclude;
 			};
-			my ( @sources ) = split(/,/,$self->{_sourcelist});
-			my ( $source );
-			my ( $size ) = 0;
-			foreach $source (@sources)
+		};
+		my ( @sources ) = split(/,/,$self->{_sourcelist});
+		my ( $source );
+		my ( $size ) = 0;
+		foreach $source (@sources)
+		{
+			if (-e $source)
 			{
-				if (-e $source)
+				my $cmd = SysCommand->new();
+				my ( $cmdline );
+				$cmdline = 'du -s --dereference -c ' . $excludelist . ' ' . $source;
+				$cmd->Exec( $cmdline );
+				if ($cmd->GetStatus() == 0)
 				{
-					my $cmd = SysCommand->new();
-					my ( $cmdline );
-					$cmdline = 'du -s --dereference -c ' . $excludelist . ' ' . $source;
-					$cmd->Exec( $cmdline );
-					if ($cmd->GetStatus() == 0)
-					{
-						my ( $line ) = $cmd->GetLog();
-						my ( @retval ) = split(/\t/,$line);
-						$self->{_size} += ( $retval[0] * 1024 );
-					};
+					my ( $line ) = $cmd->GetLog();
+					my ( @retval ) = split(/\t/,$line);
+					$self->{_size} += ( $retval[0] * 1024 );
 				};
 			};
 		};
+	};
+	if ( defined $self->{_maxsize} )
+	{
 		$self->{_flagsize} = ( $self->{_size} > $self->{_maxsize} );
 	}
 	else
