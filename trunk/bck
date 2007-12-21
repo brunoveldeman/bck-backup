@@ -146,7 +146,7 @@ sub Main
 						if ($string =~ m/gbak: ERROR:/) { $loglevel = 0;};
 						if ($string =~ m/gbak: readied database/) { $loglevel = 3;};
 						if ($string =~ m/gbak: creating file/) { $loglevel = 3;};
-						if ($string =~ m/gbak: closing file/) { $loglevel = 3;};
+						if ($string =~ m/gbak: closing file/) { $loglevel = 2;};
 					};
 					if ( $section->GetType() eq 'samba' )
 					{
@@ -155,6 +155,7 @@ sub Main
 						if ($string =~ m/bytes received/) { $loglevel = 3;};
 						if ($string =~ m/total size/) { $loglevel = 3;};
 						if ($string =~ m/failed/) { $loglevel = 0;};
+						if ($string =~ m/skipping/) { $loglevel = 3;};
 					};
 					if ( $section->GetType() eq 'local')
 					{
@@ -163,6 +164,7 @@ sub Main
 						if ($string =~ m/bytes received/) { $loglevel = 3;};
 						if ($string =~ m/total size/) { $loglevel = 3;};
 						if ($string =~ m/failed/) { $loglevel = 0;};
+						if ($string =~ m/skipping/) { $loglevel = 3;};
 					};
 					if ( $section->GetType() eq 'part' )
 					{
@@ -171,6 +173,7 @@ sub Main
 						if ($string =~ m/bytes received/) { $loglevel = 3;};
 						if ($string =~ m/total size/) { $loglevel = 3;};
 						if ($string =~ m/failed/) { $loglevel = 0;};
+						if ($string =~ m/skipping/) { $loglevel = 3;};
 					};
 					if ( $section->GetType() eq 'rsync' )
 					{
@@ -179,6 +182,7 @@ sub Main
 						if ($string =~ m/bytes received/) { $loglevel = 3;};
 						if ($string =~ m/total size/) { $loglevel = 3;};
 						if ($string =~ m/failed/) { $loglevel = 0;};
+						if ($string =~ m/skipping/) { $loglevel = 3;};
 					};
 					if ( $section->GetType() eq 'tape' )
 					{
