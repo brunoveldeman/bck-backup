@@ -28,7 +28,7 @@ use strict;
 use English;
 
 # Version del programma
-my($version) = "2.0.7 Unstable Testing";
+my($version) = "2.0.8";
 my($state);
 my $cmdln =  eval { new CommandLine(); }  or die ($@);
 $cmdln->ParseCommandLine();
