@@ -2131,7 +2131,7 @@ sub MailReport
 	#
 	# To attach config file, uncomment this.
 	#
-	#$sm->Attach( $configfilename );
+	$sm->Attach( $configfilename );
 	#
 	# Check if the mail sent successfully or not.
 	#
