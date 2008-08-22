@@ -59,7 +59,23 @@ bck-backup for Linux [English]
 
 	30 23 * * 1-5 /usr/local/sbin/bck --do=seccion1,seccion2
     
+6. Web front-end
 
+    Install an inetd server (inetutils-inetd)
+    apt-get install inetutils-inetd
+    
+    Add a line to /etc/services
+      > bck	2311/tcp			# bck-backup
+      
+    Add line to /etc/inetd.conf
+      > bck-backup      stream  tcp     nowait  root    /usr/local/sbin/bck     /usr/local/sbin/bck --http
+
+    Restart the inetd server
+      > /etc/init.d/inetutils-inetd restart
+
+    To show de web-interface, point a browser to the servers ip address on port 2311
+      > ex.: http://192.168.100.10:2311
+      
 -----------------------------------
 bck-backup para Linux [Castellano]
 -----------------------------------
@@ -119,3 +135,21 @@ bck-backup para Linux [Castellano]
     Para ejecutar cada lunes a viernes a las 23:30 anade la siguiente linea
 
 	30 23 * * 1-5 /usr/local/sbin/bck --do=seccion1,seccion2
+
+6. Web front-end
+
+    Instalar un servidor inetd (inetutils-inetd)
+    apt-get install inetutils-inetd
+    
+    Añadir linea en /etc/services
+      > bck	2311/tcp			# bck-backup
+      
+    Añadir linea en /etc/inetd.conf
+      > bck-backup      stream  tcp     nowait  root    /usr/local/sbin/bck     /usr/local/sbin/bck --http
+
+    Reiniciar el servidor inetd
+      > /etc/init.d/inetutils-inetd restart
+      
+    Para ver la web, apuntar un navegador a la ip del servidor en el puerto 2311
+      > ej.: http://192.168.100.10:2311
+      
