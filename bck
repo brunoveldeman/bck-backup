@@ -27,7 +27,7 @@ use warnings;
 use strict;
 use English;
 # Program version
-my( $version ) = "2.1.8 Test";
+my( $version ) = "2.1.8";
 # Exit state variable
 my( $state ) = 0;
 my $cmdln =  eval { new CommandLine(); }  or die ($@);
