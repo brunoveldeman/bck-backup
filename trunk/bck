@@ -28,7 +28,7 @@ use strict;
 use English;
 use Config;
 # Program version
-my( $version ) = "2.1.19";
+my( $version ) = "2.1.20";
 # Exit state variable
 my( $state ) = 0;
 my $cmdln =  eval { new CommandLine(); }  or die ($@);
@@ -977,13 +977,14 @@ sub Update{ # (configfile) -> ()
 			print "$version - $ver \n";
 			if ( $ver gt $version )
 			{
-				print "Installing new version\n";
+				print "Installing new version...\n";
 				if ( -e "$path/$name.$version" )
 				{
 					unlink ("$path/$name.$version");
 				};
 				move ("$path/$name","$path/$name.$version");
 				move ("$path/$name.new","$path/$name");
+				print "$name succesfully updated to version $ver\n";
 			}
 			else
 			{
