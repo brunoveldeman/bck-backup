@@ -4,14 +4,16 @@ bck-backup for cygwin [English]
 
 1. Cygwin instalation.
 
+   # Recomended minimum cygwin version: 1.7
+    
 1.1 Install cygwin adding the following packages to the default packages:
 
-    gnupg
     mt
     rsync
     tar
     perl
     inetutils
+    runcygserv
 
 1.2 Find the cygwin version for the package dvd+rw-tools if you want to write to DVD
 
@@ -80,15 +82,16 @@ bck-backup para cygwin [Castellano]
 
 1. Instalacion de cygwin
 
+   # Version minima de cygwin recomendada : 1.7
+
 1.1 Instalar cygwin con los paquetes por defecto mas los siguientes:
 
-	gnupg
 	mt
 	rsync
 	tar
 	perl
 	inetutils
-    cygrunsrv
+        cygrunsrv
 
 1.2 Buscar la version para cygwin de dvd+rw-tools
 
