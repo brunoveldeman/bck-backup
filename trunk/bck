@@ -28,7 +28,7 @@ use strict;
 use English;
 use Config;
 # Program version
-my( $version ) = "2.1.20";
+my( $version ) = "2.1.21";
 # Exit state variable
 my( $state ) = 0;
 my $cmdln =  eval { new CommandLine(); }  or die ($@);
@@ -1022,7 +1022,7 @@ sub ConvertVersionString
 	for (my $num=0 ; $num lt $vercount ; $num++  )
 	{
 		$vernum*= 1000;
-		$vernum+= @ver[$num];
+		$vernum+= $ver[$num]);
 	};
 	return ( $vernum );
 };
