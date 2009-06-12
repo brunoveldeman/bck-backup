@@ -114,7 +114,7 @@ sub Main
 			$section->SetVerbose( $cmdln->GetVerboseFlag() );
 			$section->WriteLog( "START ************ bck version " . $version . " *************", 1 );
 			$section->WriteLog( "Start time : " . &GetTime() , 1 );
-			$section->WriteLog( "Running on : " . $Config{'osname'} . " / " . $Config{'osvers'} . " , Perl version : v" . $Config{'PERL_REVISION'} . "." . $Config{'PERL_VERSION'} . "." . $Config{'PERL_SUBVERSION'} , 1 );
+			$section->WriteLog( "Running on : " . $Config{'osname'} . " / " . $Config{'osvers'} . " [" . $Config{'archname'} . "] , Perl version : v" . $Config{'PERL_REVISION'} . "." . $Config{'PERL_VERSION'} . "." . $Config{'PERL_SUBVERSION'} , 1 );
 			$section->WriteLog( "Public IP Address : $publicip", 1 );
 			#add the logfile to the list so we can proccess them later
 			#push( @logfiles , $entry . $logdate . ".log" );
@@ -975,7 +975,7 @@ sub Update{ # (configfile) -> ()
 			chomp( $ver );
 			$ver =~ s/^\s+//;
 			print "$version - $ver \n";
-			if ( $ver gt $version )
+			if ( &ConvertVersionString($ver) gt &ConvertVersionString($version) )
 			{
 				print "Installing new version...\n";
 				if ( -e "$path/$name.$version" )
@@ -1002,6 +1002,29 @@ sub Update{ # (configfile) -> ()
 		print "Update failed\n";
 	};
 	return(0);
+};
+#
+# ConvertVersionString : Convert version string to int.
+#
+sub ConvertVersionString
+{
+	my ( $version ) = @_;
+	my ( $vernum, $vercount );
+	# Clean up the string
+	chomp ( $version);
+	$version =~ s/^\s+//;
+	$version =~ s/\s+$//;
+	# Split up in array
+	my ( @ver ) = split( /\./, $version );
+	$vercount = @ver;
+	$vernum = 0;
+	# Make an int with version by multiplicating by 1000 every piece.
+	for (my $num=0 ; $num lt $vercount ; $num++  )
+	{
+		$vernum*= 1000;
+		$vernum+= @ver[$num];
+	};
+	return ( $vernum );
 };
 ##################################################################################
 #
