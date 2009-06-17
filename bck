@@ -28,7 +28,7 @@ use strict;
 use English;
 use Config;
 # Program version
-my( $version ) = "2.1.21";
+my( $version ) = "2.1.22";
 # Exit state variable
 my( $state ) = 0;
 my $cmdln =  eval { new CommandLine(); }  or die ($@);
@@ -102,7 +102,6 @@ sub Main
 	if ( defined $cfg)
 	{
 		my ( @dolist ) = split(/,/,$cmdln->GetDo());
-		#my @all_sections = $cfg->Sections(); # For testing
 		my ( $seconds );
 		my ( $entry );
 		foreach $entry (@dolist)
@@ -115,10 +114,7 @@ sub Main
 			$section->WriteLog( "START ************ bck version " . $version . " *************", 1 );
 			$section->WriteLog( "Start time : " . &GetTime() , 1 );
 			$section->WriteLog( "Running on : " . $Config{'osname'} . " / " . $Config{'osvers'} . " [" . $Config{'archname'} . "] , Perl version : v" . $Config{'PERL_REVISION'} . "." . $Config{'PERL_VERSION'} . "." . $Config{'PERL_SUBVERSION'} , 1 );
-			$section->WriteLog( "Public IP Address : $publicip", 1 );
-			#add the logfile to the list so we can proccess them later
-			#push( @logfiles , $entry . $logdate . ".log" );
-			#push( @filelist , $entry . $logdate . ".lst" );
+			$section->WriteLog( "Client : " . $gsection->GetClient() . " / Public IP Address : $publicip", 1 );
 			if ( $section->LoadSection( $cmdln->GetConfigFileName() ) == 0 )
 			{
 				if ( $section->CalcSize() == 0 )
@@ -127,20 +123,20 @@ sub Main
 					if ( $status == 0 )
 					{
 						#section ok
-						$section->WriteLog( "Section [" . $section->{_section} . "]  (" . $section->GetSize() . " bytes) ok." , 1);
+						$section->WriteLog( "Section [" . $section->{_section} . "]  (" . &HumanBytes( $section->GetSize() )  . " bytes) ok." , 1);
 						$section->WriteTable();
 					}
 					else
 					{
 						#section not ok
-						$section->WriteLog( "Section [" . $section->{_section} . "]  (" . $section->{_size} . ") errors/warnings." , 1);
+						$section->WriteLog( "Section [" . $section->{_section} . "]  (" . &HumanBytes( $section->{_size} ) . ") errors/warnings." , 1);
 						$section->WriteTable();
 					};
 				}
 				else
 				{
 					#section size larger then maxsize
-					$section->WriteLog( "Section [" . $section->{_section} . "] size (" . $section->{_size} . ") larger then maxsize (" . $section->{_maxsize} . ")." , 1);
+					$section->WriteLog( "Section [" . $section->{_section} . "] size (" . &HumanBytes( $section->{_size} ) . ") larger then maxsize (" . &HumanBytes( $section->{_maxsize} ) . ")." , 1);
 					$section->WriteTable();
 				};
 			}
@@ -152,8 +148,8 @@ sub Main
 			};
 			$section->WriteLog( "End time : " . &GetTime() , 1 );
 			$seconds = (time() - $starttime);
-			my ( $timestr ) =  ($seconds/(60*60))%24 . ":" . ($seconds/60)%60 . ":" . $seconds%60 ;
-			$section->WriteLog( "Total time elapsed (h:m:s): " . $timestr , 1 );
+			my ( $timestr ) =  sprintf("%02d:%02d:%02d", ($seconds/(60*60))%24 , ($seconds/60)%60 ,  $seconds%60 );
+			$section->WriteLog( "Total time elapsed (hh:mm:ss): " . $timestr , 1 );
 			$section->WriteLog( "END   ************ bck version " . $version . " *************", 1 );
 		};
 	}
@@ -299,6 +295,65 @@ sub GetIP # () -> (myip)
 		};
 	};
 	return ($myip);
+};
+
+sub HumanBytes
+{
+	my ( $bytes ) = @_;
+	my ( $output );
+	#byte	  B
+	#kilobyte  K = 2**10 B = 1024 B
+	#megabyte  M = 2**20 B = 1024 * 1024 B
+	#gigabyte  G = 2**30 B = 1024 * 1024 * 1024 B
+	#terabyte  T = 2**40 B = 1024 * 1024 * 1024 * 1024 B
+	#petabyte  P = 2**50 B = 1024 * 1024 * 1024 * 1024 * 1024 B
+	#exabyte   E = 2**60 B = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 B
+	#zettabyte Z = 2**70 B = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 B
+	#yottabyte Y = 2**80 B = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 B
+	if ( defined $bytes and ( $bytes != 0 ) )
+	{
+	if ( $bytes > ( 2 ** 80 ) )
+	{
+		$output = sprintf("%.2f YB",( $bytes / ( 2 ** 80 ) ) );
+	}
+	elsif ( $bytes > ( 2 ** 70) )
+	{
+		$output = sprintf("%.2f ZB",( $bytes / ( 2 ** 70 ) ) );
+	}
+	elsif ( $bytes > ( 2 ** 60) )
+	{
+		$output = sprintf("%.2f EB",( $bytes / ( 2 ** 60 ) ) );
+	}
+	elsif ( $bytes > ( 2 ** 50) )
+	{
+		$output = sprintf("%.2f PB",( $bytes / ( 2 ** 50 ) ) );
+	}
+	elsif ( $bytes > ( 2 ** 40) )
+	{
+		$output = sprintf("%.2f TB",( $bytes / ( 2 ** 40 ) ) );
+	}
+	elsif ( $bytes > ( 2 ** 30) )
+	{
+		$output = sprintf("%.2f GB",( $bytes / ( 2 ** 30 ) ) );
+	}
+	elsif ( $bytes > ( 2 ** 20) )
+	{
+		$output = sprintf("%.2f MB",( $bytes / ( 2 ** 20 ) ) );
+	}
+	elsif ( $bytes > ( 2 ** 10) )
+	{
+		$output = sprintf("%.2f KB",( $bytes / ( 2 ** 10 ) ) );
+	}
+	else
+	{
+		$output = sprintf("%.0f B",( $bytes ) );
+	};
+	}
+	else
+	{
+		$output = "-"
+	};
+	return( $output );
 };
 ##################################################################################
 #
@@ -3148,29 +3203,32 @@ sub WinMsg # (share,text) -> ()
 	my (  $text ) = @_;
 	my ( $cmd, $share );
 	my ( $status ) = 0;
-	$share = $self->{_dest};
-	$share =~ m/\/\/(.*)\//i; # Este regex extraye el nombre de maquina del recurso y lo mete en $1
-	$cmd = "echo \"$text\" | smbclient -M $1 -U BCK-Backup";
-	$self->WriteLog( "Command : " . $cmd , 3 );
-	open (DATA, "$cmd 2>&1 |" ) or $status = 1;
-	if ( $status == 0 )
+	if ( $gsection->GetWinMsg eq "yes" )
 	{
-  		while ( defined ( my $line = <DATA> )  )
-   		{
-   			chomp($line);
-			$self->WriteLog( $line , 2 );
-   		};
-   		close DATA;
-   		$status = $? >> 8;
-  	};
-	$self->WriteLog( "Exit status : " . $status , 3 );
-	if ($status == 0)
-	{
-		$self->WriteLog( "Msg sent to $1 : $text" , 3 );
-	}
-	else
-	{
-		$self->WriteLog( "Msg NOT sent to $1 : $text" , 3 );
+		$share = $self->{_dest};
+		$share =~ m/\/\/(.*)\//i; # Este regex extraye el nombre de maquina del recurso y lo mete en $1
+		$cmd = "echo \"$text\" | smbclient -M $1 -U BCK-Backup";
+		$self->WriteLog( "Command : " . $cmd , 3 );
+		open (DATA, "$cmd 2>&1 |" ) or $status = 1;
+		if ( $status == 0 )
+		{
+  			while ( defined ( my $line = <DATA> )  )
+   			{
+   				chomp($line);
+				$self->WriteLog( $line , 2 );
+   			};
+   			close DATA;
+	   		$status = $? >> 8;
+  		};
+		$self->WriteLog( "Exit status : " . $status , 3 );
+		if ($status == 0)
+		{
+			$self->WriteLog( "Msg sent to $1 : $text" , 3 );
+		}
+		else
+		{
+			$self->WriteLog( "Msg NOT sent to $1 : $text" , 3 );
+		};
 	};
 	return ( 0 );
 };
