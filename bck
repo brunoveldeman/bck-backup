@@ -957,7 +957,7 @@ sub PrintHelp # () -> ()
 	print "	--config-file=	[/mypath/myconfig.file]\n";
 #	print "	--systemcheck			: Include system check in report\n";
 #	print "	--install			: Create config file mode\n";
-	print "	--update			: Update from ftp\n";
+	print "	--update			: Update from http/ftp server.\n";
 	print "	--http				: Run bck in http server mode for use with inetd\n";
 	print "	--mail				: Send pending reports by e-mail\n";
 	print "	--check				: Check configuration file\n";
@@ -1023,27 +1023,40 @@ sub Update{ # (configfile) -> ()
 		$result = `$cmd`;
 		if ( -e  "$path/$name.new" )
 		{
-			chmod 0755, "$path/$name.new";
-			$result = `$path/$name.new --version`;
-			print "Downloaded $result";
-			my ( $dummy, $ver ) = split(/:/, $result);
-			chomp( $ver );
-			$ver =~ s/^\s+//;
-			print "$version - $ver \n";
-			if ( &ConvertVersionString($ver) gt &ConvertVersionString($version) )
+			# Check the downloaded version.
+			undef $result;
+			open FILE, "<$path/$name.new";
+			while ( <FILE>)
+			{
+				if ( /my.*\$version.*=.*\"(\d+\.\d+\.\d+)\"/ )
+				{
+					$result = "$1";
+					last;
+				};
+			};
+			close FILE;
+			print "Downloaded version $result\n";
+			chomp( $result );
+			if ( &ConvertVersionString($result) gt &ConvertVersionString($version) )
 			{
 				print "Installing new version...\n";
 				if ( -e "$path/$name.$version" )
 				{
 					unlink ("$path/$name.$version");
 				};
+				chmod 0755, "$path/$name.new";
 				move ("$path/$name","$path/$name.$version");
 				move ("$path/$name.new","$path/$name");
-				print "$name succesfully updated to version $ver\n";
+				print "$name succesfully updated to version $result\n";
+			}
+			elsif ( &ConvertVersionString($result) lt &ConvertVersionString($version) )
+			{
+				print "No updates available, instaled version ($version) is newer then downloaded version ($result).\n";
+				unlink ("$path/$name.new");
 			}
 			else
 			{
-				print "No updates available\n";
+				print "Already up to date.\n";
 				unlink ("$path/$name.new");
 			};
 		}
