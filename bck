@@ -123,7 +123,7 @@ sub Main
 					if ( $status == 0 )
 					{
 						#section ok
-						$section->WriteLog( "Section [" . $section->{_section} . "]  (" . &HumanBytes( $section->GetSize() )  . " bytes) ok." , 1);
+						$section->WriteLog( "Section [" . $section->{_section} . "]  (" . &HumanBytes( $section->GetSize() )  . ") ok." , 1);
 						$section->WriteTable();
 					}
 					else
@@ -3266,7 +3266,7 @@ sub CalcSize
 			my ( $excludelist ) = '';
 			if ( defined $self->{_excludelist} )
 			{
-				my (@excludes ) = split(/,/,$self->{_excludelist});
+				my (@excludes ) = split(/[,\n]/,$self->{_excludelist});
 				my ( $exclude );
 				foreach $exclude (@excludes)
 				{
@@ -3274,7 +3274,7 @@ sub CalcSize
 				};
 			};
 			my ( $sourcelist ) = '';
-			my ( @sources ) = split(/,/,$self->{_sourcelist});
+			my ( @sources ) = split(/[,\n]/,$self->{_sourcelist});
 			my ( $source );
 			my ( $size ) = 0;
 			my ( $notempty ) = 0;
@@ -3353,7 +3353,7 @@ sub BackupLocal
 	my ( $self ) = shift;
 	my ( $source );
 	my ( $status ) = 0;
-	my ( @sources ) = split(/,/,$self->{_sourcelist} );
+	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
 	$self->CalcSpaceleft( $self->{_dest} );
 	#check if histdirs is set
 	if ( defined $self->{_histdirs} )
@@ -3385,7 +3385,7 @@ sub BackupLocal
 			my ( $excludelist ) = '';
 			if ( defined $self->{_excludelist} )
 			{
-				my (@excludes ) = split(/,/,$self->{_excludelist});
+				my (@excludes ) = split(/[,\n]/,$self->{_excludelist});
 				my ( $exclude );
 				foreach $exclude (@excludes)
 				{
@@ -3512,7 +3512,7 @@ sub CypherLocal
 	my ( $self ) = shift;
 	my ( $source );
 	my ( $status ) = 0;
-	my ( @sources ) = split(/,/,$self->{_sourcelist} );
+	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
 	my $tmpdir = tempdir( $gsection->GetTempDir() . "/BCKXXXXXX");
 	$self->CalcSpaceleft( $self->{_dest} );
 	#check if histdirs is set
@@ -3545,7 +3545,7 @@ sub CypherLocal
 			my ( $excludelist ) = '';
 			if ( defined $self->{_excludelist} )
 			{
-				my (@excludes ) = split(/,/,$self->{_excludelist});
+				my (@excludes ) = split(/[,\n]/,$self->{_excludelist});
 				my ( $exclude );
 				foreach $exclude (@excludes)
 				{
@@ -3704,7 +3704,7 @@ sub BackupRsync
 	my ( $self ) = shift;
 	my ( $source, $bwlimit );
 	my ( $status ) = 0;
-	my ( @sources ) = split(/,/,$self->{_sourcelist} );
+	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
 	#loop sources
 	foreach $source (@sources)
 	{
@@ -3715,7 +3715,7 @@ sub BackupRsync
 			my ( $excludelist ) = '';
 			if ( defined $self->{_excludelist} )
 			{
-				my (@excludes ) = split(/,/,$self->{_excludelist});
+				my (@excludes ) = split(/[,\n]/,$self->{_excludelist});
 				my ( $exclude );
 				foreach $exclude (@excludes)
 				{
@@ -3832,7 +3832,7 @@ sub BackupTape
 	my ( $source );
 	my ( $sourcelist ) = '';
 	my ( $status ) = 0;
-	my ( @sources ) = split(/,/,$self->{_sourcelist} );
+	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
 	foreach $source (@sources)
 	{
 		if ( -e $source )
@@ -3900,7 +3900,7 @@ sub BackupTape
 		my ( $excludelist ) = ' ';
 		if ( defined $self->{_excludelist} )
 		{
-			my (@excludes ) = split(/,/,$self->{_excludelist});
+			my (@excludes ) = split(/[,\n]/,$self->{_excludelist});
 			my ( $exclude );
 			foreach $exclude (@excludes)
 			{
@@ -4013,7 +4013,7 @@ sub CypherTape
 	my ( $self ) = shift;
 	my ( $source );
 	my ( $status ) = 0;
-	my ( @sources ) = split(/,/,$self->{_sourcelist} );
+	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
 	my $tmpdir = tempdir( $gsection->GetTempDir() . "/BCKXXXXXX");
 	my $tmpdir2 = tempdir( $gsection->GetTempDir() . "/BCKXXXXXX");
 	#loop sources
@@ -4026,7 +4026,7 @@ sub CypherTape
 			my ( $excludelist ) = '';
 			if ( defined $self->{_excludelist} )
 			{
-				my (@excludes ) = split(/,/,$self->{_excludelist});
+				my (@excludes ) = split(/[,\n]/,$self->{_excludelist});
 				my ( $exclude );
 				foreach $exclude (@excludes)
 				{
@@ -4193,7 +4193,7 @@ sub CypherTape
 		my ( $excludelist ) = ' ';
 		if ( defined $self->{_excludelist} )
 		{
-			my (@excludes ) = split(/,/,$self->{_excludelist});
+			my (@excludes ) = split(/[,\n]/,$self->{_excludelist});
 			my ( $exclude );
 			foreach $exclude (@excludes)
 			{
@@ -4309,7 +4309,7 @@ sub BackupSmb
 	my ( $self ) = shift;
 	my ( $source );
 	my ( $status ) = 0;
-	my ( @sources ) = split(/,/,$self->{_sourcelist} );
+	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
 	my $tmpdir = tempdir( $gsection->GetTempDir() . "/BCKXXXXXX");
 	my $cmd = "smbclient " . $self->{_dest} . " " . $self->GetPass() . " -E --command='exit' --user=" . $self->GetUser();
 	#check if we can connect to smb share
@@ -4411,7 +4411,7 @@ sub BackupSmb
 					#build excludelist string
 					if ( defined $self->{_excludelist} )
 					{
-						my (@excludes ) = split(/,/,$self->{_excludelist});
+						my (@excludes ) = split(/[,\n]/,$self->{_excludelist});
 						my ( $exclude );
 						foreach $exclude (@excludes)
 						{
@@ -4572,7 +4572,7 @@ sub BackupPart
 	my ( $self ) = shift;
 	my ( $source );
 	my ( $status ) = 0;
-	my ( @sources ) = split(/,/,$self->{_sourcelist} );
+	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
 	my $tmpdir = tempdir( $gsection->GetTempDir() . "/BCKXXXXXX");
 	my $cmd = "mount " . $self->{_dest} . " " . $tmpdir;
 	open (DATA, "$cmd 2>&1 |" ) or $status = 1;
@@ -4626,7 +4626,7 @@ sub BackupPart
 				my ( $excludelist ) = ' ';
 				if ( defined $self->{_excludelist} )
 				{
-					my (@excludes ) = split(/,/,$self->{_excludelist});
+					my (@excludes ) = split(/[,\n]/,$self->{_excludelist});
 					my ( $exclude );
 					foreach $exclude (@excludes)
 					{
@@ -4772,7 +4772,7 @@ sub BackupSG2
 	my ( $self ) = shift;
 	my ( $source);
 	my ( $status ) = 0;
-	my ( @sources ) = split(/,/,$self->{_sourcelist} );
+	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
 	$self->CalcSpaceleft( $self->{_dest} );
 	#check if histdirs is set
 	if ( defined $self->{_histdirs} )
@@ -4872,7 +4872,7 @@ sub ExecSection
 	my ( $self ) = shift;
 	my ( $source);
 	my ( $status ) = 0;
-	my ( @sources ) = split(/,/,$self->{_sourcelist} );
+	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
 	$self->CalcSpaceleft( $self->{_dest} );
 	#check if histdirs is set
 	$source = shift(@sources);
@@ -4971,7 +4971,7 @@ sub Backup
 	if ( $self->{_type} eq 'optical' )
 	{
 		my ( $source, $status );
-		my ( @sources ) = split(/,/,$self->{_sourcelist} );
+		my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
 		my ( $sourcelist ) = "";
 		foreach $source (@sources)
 		{
@@ -5109,7 +5109,7 @@ sub WriteDvd
 	my ( $excludelist ) = ' ';
 	if ( defined $self->{_excludelist} )
 	{
-		my (@excludes ) = split(/,/,$self->{_excludelist});
+		my (@excludes ) = split(/[,\n]/,$self->{_excludelist});
 		my ( $exclude );
 		foreach $exclude (@excludes)
 		{
@@ -5138,7 +5138,7 @@ sub WriteCd
 	my ( $excludelist ) = ' ';
 	if ( defined $self->{_excludelist} )
 	{
-		my (@excludes ) = split(/,/,$self->{_excludelist});
+		my (@excludes ) = split(/[,\n]/,$self->{_excludelist});
 		my ( $exclude );
 		foreach $exclude (@excludes)
 		{
