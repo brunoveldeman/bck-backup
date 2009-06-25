@@ -28,7 +28,7 @@ use strict;
 use English;
 use Config;
 # Program version
-my( $version ) = "2.1.22";
+my( $version ) = "2.1.23";
 # Exit state variable
 my( $state ) = 0;
 my $cmdln =  eval { new CommandLine(); }  or die ($@);
@@ -94,7 +94,7 @@ sub Main
 	my ( @logfiles );
 	my ( @filelist );
 	my ( $globalstatus ) = 0;
-	$publicip = &GetIP();
+	$publicip = &GetIP("www.whatismyip.com/automation/n09230945.asp");
 	if ( -e $cmdln->GetConfigFileName )
 	{
 		$cfg = Config::IniFiles->new( -file => $cmdln->GetConfigFileName );
@@ -112,7 +112,7 @@ sub Main
 			$section->SetDebug( $cmdln->GetDebugFlag() );
 			$section->SetVerbose( $cmdln->GetVerboseFlag() );
 			$section->WriteLog( "START ************ bck version " . $version . " *************", 1 );
-			$section->WriteLog( "Start time : " . &GetTime() , 1 );
+			$section->WriteLog( "Start time : local : " . &GetTime() . " ntp : " . &GetNtpTime() , 1 ) ;
 			$section->WriteLog( "Running on : " . $Config{'osname'} . " / " . $Config{'osvers'} . " [" . $Config{'archname'} . "] , Perl version : v" . $Config{'PERL_REVISION'} . "." . $Config{'PERL_VERSION'} . "." . $Config{'PERL_SUBVERSION'} , 1 );
 			$section->WriteLog( "Client : " . $gsection->GetClient() . " / Public IP Address : $publicip", 1 );
 			if ( $section->LoadSection( $cmdln->GetConfigFileName() ) == 0 )
@@ -123,7 +123,7 @@ sub Main
 					if ( $status == 0 )
 					{
 						#section ok
-						$section->WriteLog( "Section [" . $section->{_section} . "]  (" . &HumanBytes( $section->GetSize() )  . ") ok." , 1);
+						$section->WriteLog( "Section [" . $section->{_section} . "]  (" . &HumanBytes( $section->GetSize() )  . " ) ok." , 1);
 						$section->WriteTable();
 					}
 					else
@@ -179,6 +179,7 @@ sub MailReports
 	};
 	if ( defined $cfg)
 	{
+		my ( $statusfile ) = $cmdln->GetStatusFileName;
 		my $report = Report->new();
 		$report->SetTittle( "Backup report." );
 		$report->SetIP( $publicip );
@@ -193,9 +194,9 @@ sub MailReports
 			};
 		$report->AddMail( $mail , $maillvl, $mailmode);
 		};
-		move ( $gsection->GetSpoolDir() . '/'  . 'status.tbl', $gsection->GetSpoolDir() . '/'  . 'status.wrk' );
-		open ( WORKFILE, "<" . $gsection->GetSpoolDir() . '/'  . 'status.wrk' );
-		open ( TABLEFILE, ">>" . $gsection->GetSpoolDir() . '/'  . 'status.tbl' );
+		move ( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl', $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.wrk' );
+		open ( WORKFILE, "<" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.wrk' );
+		open ( TABLEFILE, ">>" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
 		my ( $line, $date );
 		my ( $reportstatus ) = 0;
 		foreach $line (<WORKFILE>)
@@ -234,12 +235,12 @@ sub MailReports
 		my $mailstatus = $report->SendReports();
 		if ( $mailstatus == 0 )
 		{
-			unlink( $gsection->GetSpoolDir() . '/'  . 'status.wrk');
+			unlink( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.wrk');
 		}
 		else
 		{
-			unlink( $gsection->GetSpoolDir() . '/'  . 'status.tbl');
-			move ( $gsection->GetSpoolDir() . '/'  . 'status.wrk', $gsection->GetSpoolDir() . '/'  . 'status.tbl' );
+			unlink( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl');
+			move ( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.wrk', $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
 		}
 		return(0);
 	};
@@ -249,12 +250,16 @@ sub MailReports
 # Sub GetIP :
 #
 ##################################################################################
-sub GetIP # () -> (myip)
+sub GetIP # (webaddress) -> (myip)
 {
 	use Socket;
+	my ( $webaddress ) = @_;
 	my ( $response, $myip );
 	my ( $peer, $address );
-	$address = inet_aton( 'www.girona.com' );
+	$webaddress = "www.whatismyip.com/automation/n09230945.asp" unless $webaddress;
+	my ( $host , $page ) = split( /\//, $webaddress, 2 );
+	$page = "" unless $page;
+	$address = inet_aton( $host );
 	
 	if ( not defined $address )
 	{
@@ -267,7 +272,10 @@ sub GetIP # () -> (myip)
 		connect( S, $peer );
 		select(S);
 		$|=1;
-		print S "GET /ip/ HTTP/1.0\n\n";
+		print S "GET /$page HTTP/1.1\r\n";
+		print S "Host: $host\r\n";
+		print S "Accept: text/html\r\n";
+		print S "Connection: close\r\n\r\n";
 		select STDOUT;
 		{
 			while ( defined ( my $line = <S> )  )
@@ -284,14 +292,7 @@ sub GetIP # () -> (myip)
 		}
 		else
 		{
-			if (defined ($2))
-			{
-				$myip = $2;
-			}
-			else
-			{
-				$myip = "---.---.---.---";
-			};
+		$myip = "---.---.---.---";
 		};
 	};
 	return ($myip);
@@ -364,8 +365,47 @@ sub GetTime # () -> (mytime)
 {
 	my ($mytime);
 	my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( time );
-	$mytime = $mday . "/" . ( $mon + 1 ) . "/" . ( $year + 1900 ) . " " . $hour . ":" . $min . ":" . $sec . " (" . ($wday) . ")";
+	$mytime = $mday . "/" . ( $mon + 1 ) . "/" . ( $year + 1900 ) . " " . sprintf( "%02d:%02d:%02d" , $hour, $min, $sec ) . " (" . ($wday) . ")";
 	return ($mytime);
+};
+##################################################################################
+#
+# Sub GetNtpTime :
+#
+##################################################################################
+sub GetNtpTime # (ntpservername) -> (mytime)
+{
+	use Socket;
+	my ( $ntpserver, $ntpport ) = @_;
+	my ( $buflen, $sndmsg, $ttime ,$ipaddr, $portaddr, @response );
+	# If no server name or address is passed, we use the ntp server pool
+	$ntpserver = "pool.ntp.org" unless $ntpserver;
+	# If no port is given, we use the standard port.
+	$ntpport = 123 unless $ntpport;
+	$buflen = 1024;
+	socket( SOCKET, PF_INET, SOCK_DGRAM, getprotobyname( "udp" ) );
+	$ipaddr = inet_aton( $ntpserver );
+	if ( defined $ipaddr )
+	{
+		$portaddr = sockaddr_in( $ntpport, $ipaddr );
+		# We send a message
+		$sndmsg="\010"."\0"x47;
+		send(SOCKET, $sndmsg, 0, $portaddr);
+		$portaddr = recv(SOCKET, $sndmsg, $buflen, 0);
+		# We receive the time message
+		@response = unpack("N12",$sndmsg);
+		$ttime = $response[10];
+		# Since npt starts counting on 1/1/1900 and unix starts on 1/1/1970, we substract the seconds needed.
+		$ttime -= ( ( 1970 - 1900 ) * ( 365 * 24 * 60 * 60 ) + ( int ( ( 1970 - 1900 ) / 4 ) * 24 * 60 * 60 ) );
+		# Now we put it in a human readable format.
+		my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( $ttime );
+		my ( $mytime ) = $mday . "/" . ( $mon + 1 ) . "/" . ( $year + 1900 ) . " " . sprintf( "%02d:%02d:%02d" , $hour, $min, $sec ) . " (" . ($wday) . ")";
+		return ($mytime);
+	}
+	else
+	{
+		return ( "-/-/---- --:--:-- (-)" );
+	};
 };
 ##################################################################################
 #
@@ -1328,6 +1368,7 @@ sub SendHeaders
 	print "HTTP/1.1 200 OK\r\n";
 	print "Server: bck-backup/$version\r\n";
 	print "Cache-Control: no-cache\r\n";
+	print "Connection: close\r\n";
 	print "Content-Length: " . length( $self->{_html} ) . "\r\n";
 	print "Content-Language: en\r\n";
 	print "Content-Type: text/html;charset=utf-8\r\n\r\n";
@@ -1339,6 +1380,7 @@ sub SendChunkedHeaders
 	print "HTTP/1.1 200 OK\r\n";
 	print "Server: bck-backup/$version\r\n";
 	print "Cache-Control: no-cache\r\n";
+	print "Connection: close\r\n";
 	print "Transfer-Encoding: chunked\r\n";
 	print "Content-Language: en\r\n";
 	print "Content-Type: text/html;charset=utf-8\r\n\r\n";
@@ -1359,6 +1401,7 @@ sub SendAuthHeaders
 	print "Server: bck-backup/$version\r\n";
 	print 'WWW-Authenticate: Basic realm="' . $realm . '"' . "\r\n";
 	print "Cache-Control: no-cache\r\n";
+	print "Connection: close\r\n";
 	print "Content-Length: " . length( $self->{_html} ) . "\r\n";
 	print "Content-Language: en\r\n";
 	print "Content-Type: text/html;charset=utf-8\r\n\r\n";
@@ -1370,6 +1413,7 @@ sub SendNotFoundHeaders
 	print "HTTP/1.1 404 Not Found\r\n";
 	print "Server: bck-backup/$version\r\n";
 	print "Cache-Control: no-cache\r\n";
+	print "Connection: close\r\n";
 	print "Content-Length: " . length( $self->{_html} ) . "\r\n";
 	print "Content-Language: en\r\n";
 	print "Content-Type: text/html;charset=utf-8\r\n\r\n";
@@ -1437,6 +1481,7 @@ sub ParsePostdata # (datasize) -> (data)
 sub HtmlMain # () -> ()
 {
 	my ( $self ) = shift;
+	my ( $statusfile ) = $cmdln->GetStatusFileName;
 	$self->ParseHeaders;
 	if ( $self->{_method} eq "POST" )
 	{
@@ -1466,10 +1511,10 @@ sub HtmlMain # () -> ()
 	. "<th style=\"vertical-align: top; width: 100px; text-align: center;\">Report<br>\n"
 	. "</th>\n"
 	. "</tr>\n");
-	if ( -e $gsection->GetSpoolDir() . '/'  . 'status.mkr' )
+	if ( -e $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.mkr' )
 	{
-		open ( MARKFILE, "<" . $gsection->GetSpoolDir() . '/'  . 'status.mkr' );
-   		#print MARKFILE  "0," . $self->GetSection() . "," . $self->GetName() . "," . $date . "\n";
+		open ( MARKFILE, "<" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.mkr' );
+		#print MARKFILE  "0," . $self->GetSection() . "," . $self->GetName() . "," . $date . "\n";
 		my ( $line );
 		foreach $line (<MARKFILE>)
 		{
@@ -1479,15 +1524,15 @@ sub HtmlMain # () -> ()
 			$self->AddHtml ("<tr>\n" . "<td style=\"vertical-align: top;\"><b>$name</b> <i>[$section]</i>\n" . "</td>\n");
 			$self->AddHtml ("<td style=\"vertical-align: top;\">$date\n" . "</td>\n");
 			$self->AddHtml ("<td style=\"vertical-align: top;\">-\n" . "</td>\n");
-   			$self->AddHtml ("<td style=\"background-color: rgb(225, 255, 51); vertical-align: top; width: 100px; text-align: center;\"><marquee>In Progress</marquee>\n</td>");
-   			$self->AddHtml ("<td style=\"background-color: rgb(255, 153, 0); vertical-align: top; width: 100px; text-align: center;\">Pending\n</td>");
-   			$self->AddHtml ("\r\n</tr>\n");
-	   	};
+			$self->AddHtml ("<td style=\"background-color: rgb(225, 255, 51); vertical-align: top; width: 100px; text-align: center;\"><marquee>In Progress</marquee>\n</td>");
+			$self->AddHtml ("<td style=\"background-color: rgb(255, 153, 0); vertical-align: top; width: 100px; text-align: center;\">Pending\n</td>");
+			$self->AddHtml ("\r\n</tr>\n");
+		};
 		close ( MARKFILE );
 	};
-	if ( -e $gsection->GetSpoolDir() . '/'  . 'status.tbl' )
+	if ( -e $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' )
 	{
-		open ( TABLEFILE, "<" . $gsection->GetSpoolDir() . '/'  . 'status.tbl' );
+		open ( TABLEFILE, "<" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
 		my ( $line, $date );
 		my ( $reportstatus ) = 0;
 		my ( $counter ) = 0;
@@ -1552,6 +1597,7 @@ sub HtmlLogs # () -> ()
 {
 	my ( $self ) = shift;
 	$self->ParseHeaders;
+	my ( $statusfile ) = $cmdln->GetStatusFileName;
 	if ( $self->{_method} eq "POST" )
 	{
 		$self->ParsePostdata();
@@ -1599,9 +1645,9 @@ sub HtmlLogs # () -> ()
 		. "<th style=\"vertical-align: top; width: 100px; text-align: center;\">Listfile Size<br>\n"
 		. "</th>\n"
 		. "</tr>\n" );
-		if ( -e $gsection->GetSpoolDir() . '/'  . 'status.mkr' )
+		if ( -e $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.mkr' )
 		{
-			open ( MARKFILE, "<" . $gsection->GetSpoolDir() . '/'  . 'status.mkr' );
+			open ( MARKFILE, "<" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.mkr' );
 	   		#print MARKFILE  "0," . $self->GetSection() . "," . $self->GetName() . "," . $date . "\n";
 			my ( $line, $size );
 			foreach $line (<MARKFILE>)
@@ -1619,7 +1665,7 @@ sub HtmlLogs # () -> ()
 		   	};
 			close ( MARKFILE );
 		};
-		open ( TABLEFILE, "<" . $gsection->GetSpoolDir() . '/'  . 'status.tbl' );
+		open ( TABLEFILE, "<" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
 		my ( $line, $date );
 		my ( $reportstatus ) = 0;
 		my ( $counter ) = 0;
@@ -1714,7 +1760,7 @@ sub HtmlBackup # () -> ()
 		my $cfg = Config::IniFiles->new( -file => $self->{_configfile} );
 		foreach my $section ( $cfg->Sections)
 		{
-			if ( $section ne 'global' & $section ne "mail" & $section ne "http" )
+			if ( $section ne 'global' & $section ne 'mail' & $section ne 'http' & $section ne 'update' )
 			{
 				$self->AddHtml( "<hr>\r\n" );
 				$self->AddHtml( '<form action="/dobackup" method="POST"><input type="Submit" value="Backup">' . "\r\n " );
@@ -1732,6 +1778,7 @@ sub HtmlBackup # () -> ()
 sub HtmlDoBackup # () -> ()
 {
 	use MIME::Base64;
+	use Config;
 	my ( $self ) = shift;
 	my ( $var, $val );
 	$self->ParseHeaders();
@@ -1784,10 +1831,10 @@ sub HtmlDoBackup # () -> ()
 			$section->SetSection( $entry );
 			$section->SetLogDate( $logdate );
 			$self->SendBodyChunk();
-			$section->WriteLog( "START  ************ bck version " . $version . " *************", 1 );
+			$section->WriteLog( "START ************ bck version " . $version . " *************", 1 );
 			$section->WriteLog( "Start time : " . ::GetTime() , 1 );
-			$section->WriteLog( "Running on : " . $OSNAME . " , Perl version : " . $] , 1 );
-			$section->WriteLog( "Public IP Address : $publicip", 1 );
+			$section->WriteLog( "Running on : " . $Config{'osname'} . " / " . $Config{'osvers'} . " [" . $Config{'archname'} . "] , Perl version : v" . $Config{'PERL_REVISION'} . "." . $Config{'PERL_VERSION'} . "." . $Config{'PERL_SUBVERSION'} , 1 );
+			$section->WriteLog( "Client : " . $gsection->GetClient() . " / Public IP Address : $publicip", 1 );
 			if ( $section->LoadSection( $self->{_configfile} ) == 0 )
 			{
 				if ( $section->CalcSize() == 0 )
@@ -1874,7 +1921,7 @@ sub HtmlRestore # () -> ()
 		my $cfg = Config::IniFiles->new( -file => $self->{_configfile} );
 		foreach my $section ( $cfg->Sections)
 		{
-			if ( $section ne 'global' & $section ne "mail" & $section ne "http" )
+			if ( $section ne 'global' & $section ne 'mail' & $section ne 'http' & $section ne 'update' )
 			{
 				$self->AddHtml( "<hr>\r\n" );
 				if (  $cfg->val($section, 'type' ) eq "local" | $cfg->val($section, 'type' ) eq "part" | $cfg->val($section, 'type' ) eq "tape" )
@@ -1934,7 +1981,7 @@ sub HtmlConfig # () -> ()
 			$self->AddHtml( "<hr>" );
 			$self->AddHtml( '<form action="config" method="POST">' . "\r\n<b>[" . "$section" . "]</b>&nbsp;&nbsp;" . '<input type="hidden" name="section" value="' .  "$section" . '" size="20" ><input type="Submit" value="Edit"></form>' . "\r\n" );
 			my @values = $cfg->Parameters($section);
-			$self->AddHtml( '<table border="0">' );
+			$self->AddHtml( '<table border="1">' );
 			foreach $var (@values)
 			{
 				$val = $cfg->val($section, $var);
@@ -1945,7 +1992,7 @@ sub HtmlConfig # () -> ()
 				{
 					$val = "************";
 				};
-				$self->AddHtml( "<tr><td>" . $var  . " =</td><td> " . $val . "</td></tr>\r\n" );
+				$self->AddHtml( "<tr><td>" . $var  . " = </td><td> " . $val . "</td></tr>\r\n" );
 			};
 			$self->AddHtml( '</table><hr>' );
 		};
@@ -1989,7 +2036,7 @@ sub HtmlEditsection # () -> ()
 		$self->AddHtml( "<b>[" . $section . "]</b>" );
 		my @values = $cfg->Parameters($section);
 		$self->AddHtml( '<form action="writeconfig" method="POST"><input type="hidden" name="section" value="' .  "$section" . '" size="20">' . "\r\n" );
-		$self->AddHtml( '<table border="0">' );
+		$self->AddHtml( '<table border="1">' );
 		foreach $var (@values)
 		{
 			$val = $cfg->val($section, $var);
@@ -2053,7 +2100,7 @@ sub HtmlWriteconfig # () -> ()
 			my $cfg = Config::IniFiles->new( -file => $self->{_configfile} );
 			$self->AddHtml( "<b>[" . $section . "]</b>" );
 			my @values = $cfg->Parameters($section);
-			$self->AddHtml( '<table border="0">' . "\r\n" );
+			$self->AddHtml( '<table border="1">' . "\r\n" );
 			while (( $var, $val) = each %{$self->{_postdata}})
 			{
 				$cfg->setval($section, $var, $val );
@@ -2069,7 +2116,7 @@ sub HtmlWriteconfig # () -> ()
 				{
 					$val = "************";
 				};
-				$self->AddHtml( '<tr><td>' . $var . '</td><td>' .  $val . '</td></tr>' . "\n\r" );
+				$self->AddHtml( '<tr><td>' . $var . ' = </td><td>' .  $val . '</td></tr>' . "\n\r" );
 			};
 			$self->AddHtml( '</table>' . "\r\n" );
 			if ( $cfg->WriteConfig($self->{_configfile}) )
@@ -2089,7 +2136,7 @@ sub HtmlWriteconfig # () -> ()
 			$cfg->newval($section, $var, $val );
 			$self->AddHtml( "<b>[" . $section . "]</b>" );
 			my @values = $cfg->Parameters($section);
-			$self->AddHtml( '<table border="0">' . "\r\n" );
+			$self->AddHtml( '<table border="1">' . "\r\n" );
 			foreach $var (@values)
 			{
 				$val = $cfg->val($section, $var);
@@ -2101,7 +2148,7 @@ sub HtmlWriteconfig # () -> ()
 				{
 					$val = "************";
 				};
-				$self->AddHtml( '<tr><td>' . $var . '</td><td>' .  $val . '</td></tr>' . "\n\r" );
+				$self->AddHtml( '<tr><td>' . $var . ' = </td><td>' .  $val . '</td></tr>' . "\n\r" );
 			};
 			$self->AddHtml( '</table>' . "\r\n" );
 			if ( $cfg->WriteConfig($self->{_configfile}) )
@@ -2121,7 +2168,7 @@ sub HtmlWriteconfig # () -> ()
 			$cfg->delval($section, $var );
 			$self->AddHtml( "<b>[" . $section . "]</b>" );
 			my @values = $cfg->Parameters($section);
-			$self->AddHtml( '<table border="0">' . "\r\n" );
+			$self->AddHtml( '<table border="1">' . "\r\n" );
 			foreach $var (@values)
 			{
 				$val = $cfg->val($section, $var);
@@ -2133,7 +2180,7 @@ sub HtmlWriteconfig # () -> ()
 				{
 					$val = "************";
 				};
-				$self->AddHtml( '<tr><td>' . $var . '</td><td>' .  $val . '</td></tr>' . "\n\r" );
+				$self->AddHtml( '<tr><td>' . $var . ' = </td><td>' .  $val . '</td></tr>' . "\n\r" );
 			};
 			$self->AddHtml( '</table>' . "\r\n" );
 			if ( $cfg->WriteConfig($self->{_configfile}) )
@@ -2246,7 +2293,7 @@ sub HtmlBodyBottom # () -> ()
 	$self->AddHtml( '<tr><td colspan="2" bgcolor="#666666" align="center">' . "\r\n" );
 	$self->AddHtml( '<font color="#DDDDDD"><i>bck-backup Web interface</i></font>' . "\r\n" );
 	$self->AddHtml( '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . "\r\n" );
-	$self->AddHtml( '<font size="2"><i>' . "[Running on : " . $OSNAME . " , Perl version : " . $] . "]</i></font>\r\n" );
+	$self->AddHtml( '<font size="2"><i>' . "Running on : " . $Config{'osname'} . " / " . $Config{'osvers'} . " [" . $Config{'archname'} . "] , Perl version : v" . $Config{'PERL_REVISION'} . "." . $Config{'PERL_VERSION'} . "." . $Config{'PERL_SUBVERSION'} . "</i></font>\r\n" );
 	$self->AddHtml( '</td></tr>' . "\r\n" );
 	$self->AddHtml( '</table>' . "\r\n" );
 	$self->AddHtml( '</body>' . "\r\n" );
@@ -2337,7 +2384,8 @@ sub new
 		_version	=> undef,
 		_help		=> undef,
 		_http		=> undef,
-		_mail		=> undef
+		_mail		=> undef,
+		_statusfile	=> undef
 	};
 	bless $self, $class;
 	return $self;
@@ -2351,6 +2399,11 @@ sub GetVerboseFlag {
 sub GetConfigFileName {
 	my ( $self ) = @_;
 	return $self->{_configfile};
+};
+#accessor method for configfile
+sub GetStatusFileName {
+	my ( $self ) = @_;
+	return $self->{_statusfile};
 };
 #accessor method for install
 sub GetInstallFlag {
@@ -2444,10 +2497,13 @@ sub ParseCommandLine{ # () -> (ok)
 	if (defined $configfile)
 	{
 		$self->{_configfile} = $configfile;
+		$self->{_statusfile} = $configfile;
+		$self->{_statusfile} =~ s/\W//g;
 	}
 	else
 	{
 		$self->{_configfile} = "/etc/bck/bck.config";
+		$self->{_statusfile} = "status";
 	};
 	if (defined $install)
 	{
@@ -3030,11 +3086,12 @@ sub HtmlPrint
 {
 	my ( $self ) = shift;
 	my ( $string ) = @_;
+	chomp( $string );
 	$string .= "<br>";
 	if ( $self->{_html} )
 	{
-		printf ( "%x\r\n" , length( $string ) );
-		print $string . "\r\n";
+		printf ( "%x\r\n" , ( length( $string )  ) );
+		print "$string" . "\r\n";
 	};
 };
 sub VerbosePrint
@@ -3094,7 +3151,7 @@ sub WriteList
 	{
 		$self->DebugPrint( $text );
 		$self->HtmlPrint( $text );
-		open ( LOGFILE, ">>" . $gsection->GetLogDir() . '/'  . $self->{_section} . '.' . $self->{_logdate} . ".lst" );
+		open ( LOGFILE, ">>" . $gsection->GetLogDir() . '/' . $self->{_section} . '.' . $self->{_logdate} . ".lst" );
 	   	print LOGFILE $text . "\n";
 		close( LOGFILE );
 	};
@@ -3113,21 +3170,24 @@ sub SetMarkFile
 {
 	my ( $self ) = shift;
 	my ( $date );
+	my ( $statusfile ) = $cmdln->GetStatusFileName;
 	$date = $self->GetLogDate();
-	open ( MARKFILE, ">>" . $gsection->GetSpoolDir() . '/'  . 'status.mkr' );
-   	print MARKFILE  "0," . $self->GetSection() . "," . $self->GetName() . "," . $date . "\n";
+	open ( MARKFILE, ">>" . $gsection->GetSpoolDir() . '/' . "$statusfile" . '.mkr' );
+	print MARKFILE  "0," . $self->GetSection() . "," . $self->GetName() . "," . $date . "\n";
 	close ( MARKFILE );
 };
 sub DeleteMarkFile
 {
 	my ( $self ) = shift;
-	unlink($gsection->GetSpoolDir() . '/'  . 'status.mkr' );
+	my ( $statusfile ) = $cmdln->GetStatusFileName;
+	unlink($gsection->GetSpoolDir() . '/' . "$statusfile" . '.mkr' );
 };
 ##################################################################################
 sub WriteTable
 {
 	my ( $self ) = shift;
 	my ( $status, $date );
+	my ( $statusfile ) = $cmdln->GetStatusFileName;
 	$date = $self->GetLogDate();
 	if ( defined $self->GetName() )
 	{
@@ -3147,11 +3207,11 @@ sub WriteTable
 	{
 		$status = "ERROR";
 	};
-	open ( WORKFILE, ">>" . $gsection->GetSpoolDir() . '/'  . 'status.wrk' );
+	open ( WORKFILE, ">>" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.wrk' );
    	print WORKFILE  "0," . $self->GetSection() . "," . $self->GetName() . "," . $date . "," . $status . "," . $self->{_size} . "," . $self->{_destsize} . "," . $self->{_destfree} . "\n";
-	if ( -e $gsection->GetSpoolDir() . '/'  . 'status.tbl' )
+	if ( -e $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' )
 		{
-		open ( TABLEFILE, "<" . $gsection->GetSpoolDir() . '/'  . 'status.tbl' );
+		open ( TABLEFILE, "<" . $gsection->GetSpoolDir() . '/' . "$statusfile" . '.tbl' );
 		my ( $line );
 		foreach $line ( <TABLEFILE> )
 		{
@@ -3160,7 +3220,7 @@ sub WriteTable
 		close ( TABLEFILE );
 	};
 	close ( WORKFILE );
-	move ( $gsection->GetSpoolDir() . '/'  . 'status.wrk', $gsection->GetSpoolDir() . '/'  . 'status.tbl' );
+	move ( $gsection->GetSpoolDir() . '/' . "$statusfile" . '.wrk', $gsection->GetSpoolDir() . '/' . "$statusfile" . '.tbl' );
 	return (0);
 };
 ##################################################################################
@@ -4797,7 +4857,7 @@ sub BackupSG2
 		};
 	};
 	$source = shift(@sources);
-	#check if sources exist
+	#check if source exist
 	if ( -e $source )
 	{
 		my $cmd = $self->{_cmd} . " " . $source . " " . $self->{_dest} . '/' . $self->{_section} . ".gbk";
@@ -4873,10 +4933,9 @@ sub ExecSection
 	my ( $source);
 	my ( $status ) = 0;
 	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
-	$self->CalcSpaceleft( $self->{_dest} );
 	#check if histdirs is set
 	$source = shift(@sources);
-	#check if sources exist
+	#check if source exist
 	if ( -e $source )
 	{
 		my $cmd = "cd " . $source . " ; " . $self->{_cmd};
@@ -7933,3 +7992,5 @@ sub DESTROY  {
 if ($^W)	{
 	$Config::IniFiles::VERSION = $Config::IniFiles::VERSION;
 };
+
+
