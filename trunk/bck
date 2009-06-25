@@ -94,13 +94,13 @@ sub Main
 	my ( @logfiles );
 	my ( @filelist );
 	my ( $globalstatus ) = 0;
-	$publicip = &GetIP("www.whatismyip.com/automation/n09230945.asp");
 	if ( -e $cmdln->GetConfigFileName )
 	{
 		$cfg = Config::IniFiles->new( -file => $cmdln->GetConfigFileName );
 	};
 	if ( defined $cfg)
 	{
+		$publicip = &GetIP( $gsection->GetIpWebAddress() );
 		my ( @dolist ) = split(/,/,$cmdln->GetDo());
 		my ( $seconds );
 		my ( $entry );
@@ -112,7 +112,7 @@ sub Main
 			$section->SetDebug( $cmdln->GetDebugFlag() );
 			$section->SetVerbose( $cmdln->GetVerboseFlag() );
 			$section->WriteLog( "START ************ bck version " . $version . " *************", 1 );
-			$section->WriteLog( "Start time : local : " . &GetTime() . " ntp : " . &GetNtpTime() , 1 ) ;
+			$section->WriteLog( "Start time : local : " . &GetTime() . " ntp : " . &GetNtpTime( $gsection->GetNtpServer() ) , 1 ) ;
 			$section->WriteLog( "Running on : " . $Config{'osname'} . " / " . $Config{'osvers'} . " [" . $Config{'archname'} . "] , Perl version : v" . $Config{'PERL_REVISION'} . "." . $Config{'PERL_VERSION'} . "." . $Config{'PERL_SUBVERSION'} , 1 );
 			$section->WriteLog( "Client : " . $gsection->GetClient() . " / Public IP Address : $publicip", 1 );
 			if ( $section->LoadSection( $cmdln->GetConfigFileName() ) == 0 )
@@ -256,7 +256,7 @@ sub GetIP # (webaddress) -> (myip)
 	my ( $webaddress ) = @_;
 	my ( $response, $myip );
 	my ( $peer, $address );
-	$webaddress = "www.whatismyip.com/automation/n09230945.asp" unless $webaddress;
+	return ("---.---.---.---") unless $webaddress;
 	my ( $host , $page ) = split( /\//, $webaddress, 2 );
 	$page = "" unless $page;
 	$address = inet_aton( $host );
@@ -379,7 +379,7 @@ sub GetNtpTime # (ntpservername) -> (mytime)
 	my ( $ntpserver, $ntpport ) = @_;
 	my ( $buflen, $sndmsg, $ttime ,$ipaddr, $portaddr, @response );
 	# If no server name or address is passed, we use the ntp server pool
-	$ntpserver = "pool.ntp.org" unless $ntpserver;
+	return ( "-/-/---- --:--:-- (-)" ) unless $ntpserver;
 	# If no port is given, we use the standard port.
 	$ntpport = 123 unless $ntpport;
 	$buflen = 1024;
@@ -468,8 +468,10 @@ sub CheckConfig # ($configfilename) -> ()
 			my ($smtpserver)	= $cfg->val('global', 'smtpserver');
 			my ($smtpuser)	= $cfg->val('global', 'smtpuser');
 			my ($smtppass)	= $cfg->val('global', 'smtppass');
-			my ($smtpfrom) 	= $cfg->val('global', 'smtpfrom');
-			my ($smtpport) 	= $cfg->val('global', 'smtpport');
+			my ($smtpfrom)	= $cfg->val('global', 'smtpfrom');
+			my ($smtpport)	= $cfg->val('global', 'smtpport');
+			my ($ntpserver)	= $cfg->val('global', 'ntpserver');
+			my ($ipwebaddress)	= $cfg->val('global', 'ipwebaddress');
 			my ($logdir)	= $cfg->val('global', 'logdir');
 			my ($spooldir)	= $cfg->val('global', 'spooldir');
 			my ($tempdir)	= $cfg->val('global', 'tempdir');
@@ -829,6 +831,22 @@ sub CheckConfig # ($configfilename) -> ()
 			else
 			{
 				print "	#smtpfrom not defined\n";
+			};
+			if ( defined $ntpserver)
+			{
+				print "	 ntpserver ok.\n";
+			}
+			else
+			{
+				print "	#ntpserver not defined\n";
+			};
+			if ( defined $ipwebaddress)
+			{
+				print "	 ipwebaddress ok.\n";
+			}
+			else
+			{
+				print "	#ipwebaddress not defined\n";
 			};
 			if ( defined $logdir )
 			{
@@ -2599,7 +2617,8 @@ sub new
 	my ($class) = shift;
 	my ($configfilename) =  $cmdln->GetConfigFileName();
 	my ($lang,$client,$sysloglevel,$winmsg,$mt,$tar,$smbmount,$smbumount,$smbclient,
-		$sudo,$rsync,$dvdrecord,$dvdformat,$cdrecord,$rsyncrypto,$logdir,$spooldir,$tempdir,
+		$sudo,$rsync,$dvdrecord,$dvdformat,$cdrecord,$rsyncrypto,
+		$ntpserver,$ipwebaddress,$logdir,$spooldir,$tempdir,
 		$oktag, $errortag, $warningtag );
 	if (-r $configfilename )
 	{
@@ -2610,9 +2629,9 @@ sub new
 		}
 		$lang		= $cfg->val('global', 'lang');
 		$client		= $cfg->val('global', 'client');
-		$sysloglevel = $cfg->val('global', 'sysloglevel');
+		$sysloglevel	= $cfg->val('global', 'sysloglevel');
 		$winmsg		= $cfg->val('global', 'winmsg');
-		$mt			= $cfg->val('global', 'mt');
+		$mt		= $cfg->val('global', 'mt');
 		$tar		= $cfg->val('global', 'tar');
 		$smbmount	= $cfg->val('global', 'smbmount');
 		$smbumount	= $cfg->val('global', 'smbumount');
@@ -2623,6 +2642,8 @@ sub new
 		$dvdformat	= $cfg->val('global', 'dvdformat');
 		$cdrecord	= $cfg->val('global', 'cdrecord');
 		$rsyncrypto	= $cfg->val('global', 'rsyncrypto');
+		$ntpserver	= $cfg->val('global', 'ntpserver');
+		$ipwebaddress	= $cfg->val('global', 'ipwebaddress');
 		$logdir		= $cfg->val('global', 'logdir');
 		$spooldir	= $cfg->val('global', 'spooldir');
 		$tempdir	= $cfg->val('global', 'tempdir');
@@ -2647,6 +2668,8 @@ sub new
 		_dvdrecord	=> $dvdrecord,
 		_dvdformat	=> $dvdformat,
 		_rsyncrypto	=> $rsyncrypto,
+		_ntpserver	=> $ntpserver,
+		_ipwebaddress	=> $ipwebaddress,
 		_logdir		=> $logdir,
 		_spooldir	=> $spooldir,
 		_tempdir	=> $tempdir,
@@ -2777,11 +2800,23 @@ sub GetCdRecord
 	my ( $self ) = shift;
 	return $self->{_cdrecord};
 };
-#accessor method for gpg
+#accessor method for rsyncrypto
 sub GetRsyncrypto
 {
 	my ( $self ) = shift;
 	return $self->{_rsyncrypto};
+};
+#accessor method for ntpserver
+sub GetNtpServer
+{
+	my ( $self ) = shift;
+	return $self->{_ntpserver};
+};
+#accessor method for webipaddress
+sub GetIpWebAddress
+{
+	my ( $self ) = shift;
+	return $self->{_ipwebaddress};
 };
 ##################################################################################
 # End Class GlobalSection
