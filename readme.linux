@@ -65,7 +65,7 @@ bck-backup for Linux [English]
     apt-get install inetutils-inetd
     
     Add a line to /etc/services
-      > bck	2311/tcp			# bck-backup
+      > bck-backup	2311/tcp			# bck-backup
       
     Add line to /etc/inetd.conf
       > bck-backup      stream  tcp     nowait  root    /usr/local/sbin/bck     /usr/local/sbin/bck --http
@@ -142,7 +142,7 @@ bck-backup para Linux [Castellano]
     apt-get install inetutils-inetd
     
     Añadir linea en /etc/services
-      > bck	2311/tcp			# bck-backup
+      > bck-backup	2311/tcp			# bck-backup
       
     Añadir linea en /etc/inetd.conf
       > bck-backup      stream  tcp     nowait  root    /usr/local/sbin/bck     /usr/local/sbin/bck --http
