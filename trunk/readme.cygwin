@@ -13,7 +13,8 @@ bck-backup for cygwin [English]
     tar
     perl
     inetutils
-    runcygserv
+    wget
+    cygrunserv
 
 1.2 Find the cygwin version for the package dvd+rw-tools if you want to write to DVD
 
@@ -91,7 +92,8 @@ bck-backup para cygwin [Castellano]
 	tar
 	perl
 	inetutils
-        cygrunsrv
+	wget
+	cygrunsrv
 
 1.2 Buscar la version para cygwin de dvd+rw-tools
 
