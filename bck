@@ -377,34 +377,50 @@ sub GetNtpTime # (ntpservername) -> (mytime)
 {
 	use Socket;
 	my ( $ntpserver, $ntpport ) = @_;
-	my ( $buflen, $sndmsg, $ttime ,$ipaddr, $portaddr, @response );
+	my ( $mytime, $buflen, $sndmsg, $ttime ,$ipaddr, $portaddr, @response );
 	# If no server name or address is passed, we use the ntp server pool
 	return ( "-/-/---- --:--:-- (-)" ) unless $ntpserver;
 	# If no port is given, we use the standard port.
 	$ntpport = 123 unless $ntpport;
 	$buflen = 1024;
-	socket( SOCKET, PF_INET, SOCK_DGRAM, getprotobyname( "udp" ) );
-	$ipaddr = inet_aton( $ntpserver );
-	if ( defined $ipaddr )
+	my ( $retry ) = 3;
+	my ( $timeout ) = 3;
+	while ( $retry gt 0 )
 	{
-		$portaddr = sockaddr_in( $ntpport, $ipaddr );
-		# We send a message
-		$sndmsg="\010"."\0"x47;
-		send(SOCKET, $sndmsg, 0, $portaddr);
-		$portaddr = recv(SOCKET, $sndmsg, $buflen, 0);
-		# We receive the time message
-		@response = unpack("N12",$sndmsg);
-		$ttime = $response[10];
-		# Since npt starts counting on 1/1/1900 and unix starts on 1/1/1970, we substract the seconds needed.
-		$ttime -= ( ( 1970 - 1900 ) * ( 365 * 24 * 60 * 60 ) + ( int ( ( 1970 - 1900 ) / 4 ) * 24 * 60 * 60 ) );
-		# Now we put it in a human readable format.
-		my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( $ttime );
-		my ( $mytime ) = $mday . "/" . ( $mon + 1 ) . "/" . ( $year + 1900 ) . " " . sprintf( "%02d:%02d:%02d" , $hour, $min, $sec ) . " (" . ($wday) . ")";
-		return ($mytime);
+		eval
+		{
+			local $SIG{ALRM} = sub { die print "timeout" };
+			$retry--;
+			alarm( $timeout );
+			socket( SOCKET, PF_INET, SOCK_DGRAM, getprotobyname( "udp" ) );
+			$ipaddr = inet_aton( $ntpserver );
+			if ( defined $ipaddr )
+			{
+				$portaddr = sockaddr_in( $ntpport, $ipaddr );
+				# We send a message
+				$sndmsg="\010"."\0"x47;
+				send(SOCKET, $sndmsg, 0, $portaddr);
+				$portaddr = recv(SOCKET, $sndmsg, $buflen, 0);
+				# We receive the time message
+				@response = unpack("N12",$sndmsg);
+				$ttime = $response[10];
+				# Since npt starts counting on 1/1/1900 and unix starts on 1/1/1970, we substract the seconds needed.
+				$ttime -= ( ( 1970 - 1900 ) * ( 365 * 24 * 60 * 60 ) + ( int ( ( 1970 - 1900 ) / 4 ) * 24 * 60 * 60 ) );
+				# Now we put it in a human readable format.
+				my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( $ttime );
+				$mytime = $mday . "/" . ( $mon + 1 ) . "/" . ( $year + 1900 ) . " " . sprintf( "%02d:%02d:%02d" , $hour, $min, $sec ) . " (" . ($wday) . ")";
+			};
+			alarm(0);
+		};
+		last;
+	};
+	if ( $@ )
+	{
+		return ( "-/-/---- --:--:-- (-)" );
 	}
 	else
 	{
-		return ( "-/-/---- --:--:-- (-)" );
+		return ($mytime);
 	};
 };
 ##################################################################################
