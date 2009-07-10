@@ -28,9 +28,10 @@ use strict;
 use English;
 use Config;
 # Program version
-my( $version ) = "2.1.23";
+my( $version ) = "2.2.0";
 # Exit state variable
 my( $state ) = 0;
+# Evaluate the command line parameters
 my $cmdln =  eval { new CommandLine(); }  or die ($@);
 $cmdln->ParseCommandLine();
 # Look for flags
@@ -68,6 +69,10 @@ if ( $cmdln->GetHttpFlag )
 	$web->SetConfigfile( $cmdln->GetConfigFileName );
 	$web->Start();
 	exit(0);
+};
+if ( $cmdln->GetReportFlag )
+{
+	CommReports();
 };
 if ( defined $cmdln->GetDo() )
 {
@@ -166,24 +171,23 @@ sub Main
 ##################################################################################
 sub MailReports
 {
-	use File::Copy;
 	my ( $cfg ) = undef;
 	my ( $lang ) = undef;
 	my ( $publicip);
 	my ( $logdate ) = GetLogDate();
 	my $starttime = time();
-	$publicip = &GetIP();
-	if ( -e $cmdln->GetConfigFileName )
+	$publicip = &GetIP( $gsection->GetIpWebAddress() );
+	if ( -e $cmdln->GetConfigFileName() )
 	{
-		$cfg = Config::IniFiles->new( -file => $cmdln->GetConfigFileName );
+		$cfg = Config::IniFiles->new( -file => $cmdln->GetConfigFileName() );
 	};
 	if ( defined $cfg)
 	{
 		my ( $statusfile ) = $cmdln->GetStatusFileName;
-		my $report = Report->new();
+		my ( $report ) = Report->new();
 		$report->SetTittle( "Backup report." );
 		$report->SetIP( $publicip );
-		my ( @mails ) = $cfg->Parameters ( "mail" );
+		my ( @mails ) = $cfg->Parameters( "mail" );
 		my ( $mail );
 		foreach $mail ( @mails )
 		{
@@ -192,17 +196,18 @@ sub MailReports
 			{
 				$mailmode = "html and plain";
 			};
-		$report->AddMail( $mail , $maillvl, $mailmode);
+		$report->AddMail( $mail, $maillvl, $mailmode );
 		};
-		move ( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl', $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.wrk' );
-		open ( WORKFILE, "<" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.wrk' );
-		open ( TABLEFILE, ">>" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
 		my ( $line, $date );
 		my ( $reportstatus ) = 0;
-		foreach $line (<WORKFILE>)
+		my ( $table ) = TableFile->new();
+		$table->SetFile( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
+		# Get an array with lines that have the mail bit set to 0, mailbit = 0
+		my ( @lines ) = $table->FindLines( 0, 0 );
+		foreach $line ( @lines )
 		{
 			chomp( $line );
-			my ( $mailed, $section, $name, $timestamp, $stat, $size, $destsize, $destfree ) = split( /,/,$line );
+			my ( $id, $statusbits, $section, $name, $timestamp, $stat, $size, $destsize, $destfree ) = split( /,/,$line );
 			# Check values in table file
 			if ( !defined $section ) { $section = 0 };
 			if ( !defined $name ) { $name = 0 };
@@ -212,36 +217,131 @@ sub MailReports
 			if ( !defined $destsize ) { $destsize = 0 };
 			if ( !defined $destfree ) { $destfree = 0 };
 			# End check values
-			if ( $mailed != "1" )
-		  {
-			  if ( $stat eq "Warning" )
-			  {
+			if ( $stat eq "Warning" )
+			{
 				if ( $reportstatus < 1 )
 				{
 					$reportstatus = 1;
 				};
-			  }
-			  elsif ( $stat eq "ERROR" )
-			  {
+			}
+			elsif ( $stat eq "ERROR" )
+			{
 				$reportstatus = 2;
-			  };
-			  $report->AddTable( $section, $name, $timestamp, $stat, $size, $destsize, $destfree );
-		  };
-		  print TABLEFILE "1," . $section . "," . $name . "," . $timestamp . "," . $stat . "," . $size . "," . $destsize . "," . $destfree . "\n";
+			};
+			$report->AddTable( $section, $name, $timestamp, $stat, $size, $destsize, $destfree );
 		};
-		close( TABLEFILE );
-		close( WORKFILE );
 		$report->SetState( $reportstatus );
-		my $mailstatus = $report->SendReports();
+		my ( $mailstatus ) = $report->SendReports();
 		if ( $mailstatus == 0 )
 		{
-			unlink( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.wrk');
+			# Update statusbit for mail at position "0" to "1", pass the array as reference.
+			$table->UpdateStatusBits( 0, 1, \@lines );
+		};
+		return(0);
+	};
+};
+##################################################################################
+#
+# Sub CommReports :
+#
+##################################################################################
+sub CommReports # () -> ()
+{
+	use Socket;
+	my ( $response, $myip );
+	my ( $peer, $address );
+	my ( $cfg ) = undef;
+	my ( $lang ) = undef;
+	my ( $publicip);
+	my ( $logdate ) = GetLogDate();
+	my $starttime = time();
+	my ( $rsection ) = ReportSection->new();
+	$publicip = &GetIP( $gsection->GetIpWebAddress() );
+	if ( -e $cmdln->GetConfigFileName() )
+	{
+		$cfg = Config::IniFiles->new( -file => $cmdln->GetConfigFileName() );
+	};
+	if ( defined $cfg)
+	{
+		my ( $statusfile ) = $cmdln->GetStatusFileName;
+		my ( $date );
+		my ( $reportstatus ) = 0;
+		my ( $table ) = TableFile->new();
+		$table->SetFile( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
+		# Get an array with lines that have the report bit set to 0, reportbit = 1
+		my ( @lines ) = $table->FindLines( 1, 0 );
+		my ( $numlines ) = scalar @lines;
+		foreach my $line ( @lines )
+		{
+			chomp( $line );
+			my ( $id, $mailed, $section, $name, $timestamp, $stat, $size, $destsize, $destfree ) = split( /,/,$line );
+			if ( $stat eq "Warning" )
+			{
+				if ( $reportstatus < 1 )
+				{
+					$reportstatus = 1;
+				};
+			}
+			elsif ( $stat eq "ERROR" )
+			{
+				$reportstatus = 2;
+			};
+		};
+		my ( $password ) = $rsection->GetPassword();
+		my ( $host ) = $rsection->GetServer();
+		my ( $port ) = $rsection->GetPort;
+		$address = inet_aton( $host );
+		if ( not defined $address )
+		{
+			return(0);
 		}
 		else
 		{
-			unlink( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl');
-			move ( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.wrk', $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
-		}
+			$peer = sockaddr_in( $port, $address );
+			socket( S, PF_INET, SOCK_STREAM, getprotobyname('tcp') ) or die "Socket: $!";
+			connect( S, $peer ) or die "Connect: $!";
+			select ( S );
+			$|=1;
+			print S "bck . .\n";
+			select ( STDOUT );
+			{
+				while ( sysread( S, my $buff, 1 ) )
+				{
+					last if ( $buff eq "\n" );
+					$response .= $buff;
+				};
+				# Get the seed to create the password
+				# Skip the first 3 chars as this is bck
+				my ( $seed ) = substr ( $response, 3 );
+				my  ( $auth ) = crypt( $password, $seed );
+				select ( S );
+				print S "bck$auth\n";
+				foreach my $line ( @lines )
+				{
+					my ( $id, $statusbits, $section, $name, $timestamp, $stat, $size, $destsize, $destfree ) = split( /,/,$line );
+					my ( $repline ) = $statusbits . "," . $section . "," . $name . "," . $timestamp . "," . $stat . "," . $size . "," . $destsize . "," . $destfree;
+					print S "$repline\n";
+				};
+				my ( $statusbits ) = 132 | ( $reportstatus << 3 );
+				my ( $headerline ) = "$statusbits," . $publicip . "," . $gsection->GetClient() . "," . time . ",Remote,0,0,0";
+				print S "$headerline\n";
+				print S "bck/END/\n";
+				$response = "";
+				while ( sysread( S, my $buff, 1 ) )
+				{
+					last if ( $buff eq "\n" );
+					$response .= $buff;
+				};
+				close S;
+				select ( STDOUT );
+				chomp( $response );
+			};
+		};
+		if ( ( $response ne "bck00" ) and ( $response ne "" ) )
+		{
+			# Update statusbit for comm at position "1" to "1", pass the array as reference.
+			$table->UpdateStatusBits( 1, 1, \@lines );
+		};
 		return(0);
 	};
 };
@@ -256,6 +356,7 @@ sub GetIP # (webaddress) -> (myip)
 	my ( $webaddress ) = @_;
 	my ( $response, $myip );
 	my ( $peer, $address );
+	# Return emtry IP^string if no webaddress is passed
 	return ("---.---.---.---") unless $webaddress;
 	my ( $host , $page ) = split( /\//, $webaddress, 2 );
 	$page = "" unless $page;
@@ -378,7 +479,7 @@ sub GetNtpTime # (ntpservername) -> (mytime)
 	use Socket;
 	my ( $ntpserver, $ntpport ) = @_;
 	my ( $mytime, $buflen, $sndmsg, $ttime ,$ipaddr, $portaddr, @response );
-	# If no server name or address is passed, we use the ntp server pool
+	# If no server name or address is passed, return emty time string
 	return ( "-/-/---- --:--:-- (-)" ) unless $ntpserver;
 	# If no port is given, we use the standard port.
 	$ntpport = 123 unless $ntpport;
@@ -404,7 +505,7 @@ sub GetNtpTime # (ntpservername) -> (mytime)
 				# We receive the time message
 				@response = unpack("N12",$sndmsg);
 				$ttime = $response[10];
-				# Since npt starts counting on 1/1/1900 and unix starts on 1/1/1970, we substract the seconds needed.
+				# Since ntp starts counting on 1/1/1900 and unix starts on 1/1/1970, we substract the seconds needed.
 				$ttime -= ( ( 1970 - 1900 ) * ( 365 * 24 * 60 * 60 ) + ( int ( ( 1970 - 1900 ) / 4 ) * 24 * 60 * 60 ) );
 				# Now we put it in a human readable format.
 				my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( $ttime );
@@ -431,8 +532,7 @@ sub GetNtpTime # (ntpservername) -> (mytime)
 sub GetLogDate # () -> (mydate)
 {
 	my ( $mytime );
-	my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( time );
-	$mytime = sprintf ( '%02d%02d%04d%02d%02d', $mday, ( $mon + 1 ), ( $year + 1900 ), $hour, $min );
+	$mytime = time;
 	return ( $mytime );
 };
 ##################################################################################
@@ -1033,6 +1133,7 @@ sub PrintHelp # () -> ()
 #	print "	--install			: Create config file mode\n";
 	print "	--update			: Update from http/ftp server.\n";
 	print "	--http				: Run bck in http server mode for use with inetd\n";
+	print "	--report			: Report in to central cerver.\n";
 	print "	--mail				: Send pending reports by e-mail\n";
 	print "	--check				: Check configuration file\n";
 	print "	--debug				: Debugging verbosity\n";
@@ -1182,6 +1283,8 @@ sub ConvertVersionString
 package HttpServer;
 #includes
 use English;
+use Config;
+our @ISA = qw( TableFile );	# inherits from TableFile
 #constructor
 sub new
 {	my ($class) = @_;
@@ -1273,6 +1376,12 @@ sub Start # () -> ()
 			$self->SendHeaders();
 			$self->SendBody();
 		}
+		elsif ( $self->{_uri} =~ /detail/ )
+		{
+			$self->HtmlDetail( $self->{_uri} );
+			$self->SendHeaders();
+			$self->SendBody();
+		}
 		elsif ( $self->{_uri} eq "/config" )
 		{
 			if ( $self->HtmlConfig() == 1 )
@@ -1283,32 +1392,6 @@ sub Start # () -> ()
 			else
 			{
 				$self->SendAuthHeaders("Config");
-				$self->SendBody();
-			};
-		}
-		elsif ( $self->{_uri} eq "/backup" )
-		{
-			if ( $self->HtmlBackup() == 1 )
-			{
-			$self->SendHeaders();
-			$self->SendBody();
-			}
-			else
-			{
-				$self->SendAuthHeaders("Backup");
-				$self->SendBody();
-			};
-		}
-		elsif ( $self->{_uri} eq "/restore" )
-		{
-			if ( $self->HtmlRestore() == 1 )
-			{
-			$self->SendHeaders();
-			$self->SendBody();
-			}
-			else
-			{
-				$self->SendAuthHeaders("Backup");
 				$self->SendBody();
 			};
 		}
@@ -1333,6 +1416,12 @@ sub Start # () -> ()
 				$self->SendAuthHeaders("Config");
 				$self->SendBody();
 			};
+		}
+		elsif ( $self->{_uri} eq "/" )
+		{
+			$self->HtmlMain();
+			$self->SendHeaders();
+			$self->SendBody();
 		}
 		elsif ( $self->{_uri} eq "/writeconfig" )
 		{
@@ -1388,6 +1477,59 @@ sub Start # () -> ()
 			$self->HtmlNotfound();
 			$self->SendNotFoundHeaders();
 			$self->SendBody();
+		};
+	}
+	elsif ( lc( $self->{_method} ) eq "bck")
+	{
+		# Create a random seed
+		my ( $seed ) = sprintf("%2x", int( rand( 255 ) ) );
+		# Get report access password.
+		my ( $rsection ) = ReportSection->new();
+		my ( $password ) = $rsection->GetServerAuth();
+
+		# Create password string for compare
+		my  ( $authstring ) = crypt( $password, $seed );
+		# Send the seed
+		print "bck" . $seed . "\n";
+		# Wait for authentification and report lines
+		my ( @report );
+		my ( $numreports ) = 0;
+		my $fh = select ( STDOUT );
+		$| = 1;
+		select ( $fh );
+		while ( my $line = <STDIN> )
+		{
+			$line =~ s/\r?\n$//;
+			last if $line eq "bck/END/";
+			push ( @report, $line );
+			$numreports++;
+		};
+		my ( $auth ) = shift( @report );
+		$auth = substr( $auth, 3 );
+		print "bck", $numreports - 2 ,"\n";
+		my ( $statusfile ) = $cmdln->GetStatusFileName;
+		if ( $authstring eq $auth )
+		{
+			print "bck", $numreports - 2 ,"\n";
+			my ( $table ) = TableFile->new();
+			$table->SetFile( $gsection->GetSpoolDir() . '/' . "$statusfile" . '.tbl' );
+			foreach my $line ( @report )
+			{
+				my ( $statusbits, $section, $name, $timestamp, $stat, $size, $destsize, $destfree ) = split( /,/,$line );
+				$table->{_statusbits} = $statusbits | 128;
+				$table->SetSection( $section );
+				$table->SetName( $name );
+				$table->SetTimeStamp( $timestamp );
+				$table->SetStatusText( $stat );
+				$table->SetSize( $size );
+				$table->SetDestSize( $destsize );
+				$table->SetDestFree( $destfree );
+				$table->AddLine();
+			};
+		}
+		else
+		{
+			print "bck00\n";
 		};
 	}
 	else
@@ -1521,126 +1663,200 @@ sub HtmlMain # () -> ()
 	{
 		$self->ParsePostdata();
 	};
+	my ($page ) = $self->{_postdata}->{"page"};
 	my ( $gsection ) = GlobalSection->new();
 	my ( $hsection ) = HttpSection->new();
-	
+	# If not defined, page = 1
+	$page = 1 unless $page;
+	my ( $lastpage ) = 1;
+	if ( -e $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' )
+	{
+		my ( $table ) = TableFile->new();
+		$table->SetFile( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
+		$lastpage = int( ( $table->GetNumLines() / $hsection->GetReportlines() ) + 0.5 );
+		$lastpage = 1 unless ( $lastpage gt 1 );
+	};
 	$self->HtmlBodyTop();
-	$self->AddHtml ("<br><table style=\"width: 100%; text-align: left;\" border=\"1\" cellpadding=\"2\"\n"
-	. "cellspacing=\"2\">\n"
-	. "<tbody>\n"
-	. "<tr align=\"center\">\n"
-	. "<th colspan=\"5\" rowspan=\"1\" style=\"background-color: rgb(255, 255, 204); vertical-align: top;\">"
-	. "<font size=\"+2\">Recent Backup reports</font><br>\n"
+	$self->AddHtml( "<tr><th class=\"buttons\">" );
+	if ( $page > 1 )
+	{
+		$self->AddHtml ( "<form class=\"left\" action=\"\" method=\"POST\">\n" );
+		$self->AddHtml ( '<input type="Submit" value="First page" name="group1">' . "\r\n" );
+		$self->AddHtml ( '<input type="hidden" name="page" value="' . 1 . '" size="20">' . "\r\n" );
+		$self->AddHtml ( "</form>" );
+		$self->AddHtml ( "<form class=\"left\" action=\"\" method=\"POST\">\n" );
+		$self->AddHtml ( '<input type="Submit" value="Previous page" name="group1">' . "\r\n" );
+		$self->AddHtml ( '<input type="hidden" name="page" value="' . ( $page - 1 ) . '" size="20">' . "\r\n" );
+		$self->AddHtml ( "</form>" );
+	};
+	if ( $page < $lastpage )
+	{
+		$self->AddHtml ( "<form class=\"right\" action=\"\" method=\"POST\">\n" );
+		$self->AddHtml ( '<input type="Submit" value="Last page" name="group2">' . "\r\n" );
+		$self->AddHtml ( '<input type="hidden" name="page" value="' . $lastpage . '" size="20">' . "\r\n" );
+		$self->AddHtml ( "</form>" );
+		$self->AddHtml ( "<form class=\"right\" action=\"\" method=\"POST\">\n" );
+		$self->AddHtml ( '<input type="Submit" value="Next page" name="group2">' . "\r\n" );
+		$self->AddHtml ( '<input type="hidden" name="page" value="' . ( $page + 1 ) . '" size="20">' . "\r\n" );
+		$self->AddHtml ( "</form>" );
+	};
+	$self->AddHtml( "</th></tr><tr><td>" );
+	$self->AddHtml( "<table class=\"lines\">\n" );
+	$self->AddHtml( "<thead>\n"
+	. "<tr>\n"
+	. "<th colspan=\"5\" class=\"pages\">"
+	. "Backup reports - Page " . $page . " of " . $lastpage . "\n"
 	. "</th>\n"
 	. "</tr>\n"
 	. "<tr>\n"
-	. "<th style=\"vertical-align: top; text-align: center;\">Operation<br>\n"
+	. "<th class=\"lines\">Operation\n"
 	. "</th>\n"
-	. "<th style=\"vertical-align: top; width: 120px; text-align: center;\">Date/Time<br>\n"
+	. "<th class=\"lines\" width=\"120\">Date/Time\n"
 	. "</th>\n"
-	. "<th style=\"vertical-align: top; width: 100px; text-align: center;\">Size (Use%)<br>\n"
+	. "<th class=\"lines\" width=\"120\">Size (Use%)\n"
 	. "</th>\n"
-	. "<th style=\"vertical-align: top; width: 100px; text-align: center;\">Status<br>\n"
+	. "<th class=\"lines\" width=\"100\">Status\n"
 	. "</th>\n"
-	. "<th style=\"vertical-align: top; width: 100px; text-align: center;\">Report<br>\n"
-	. "</th>\n"
-	. "</tr>\n");
-	if ( -e $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.mkr' )
-	{
-		open ( MARKFILE, "<" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.mkr' );
-		#print MARKFILE  "0," . $self->GetSection() . "," . $self->GetName() . "," . $date . "\n";
-		my ( $line );
-		foreach $line (<MARKFILE>)
-		{
-			chomp( $line );
-			my ( $mailed, $section, $name, $timestamp ) = split( /,/,$line );
-			my ( $date ) = substr( $timestamp, 0,2 ) . "/" . substr( $timestamp, 2,2 ) . "/" . substr( $timestamp, 4,4 ) . " " . substr( $timestamp, 8,2 ) . ":" . substr( $timestamp, 10,2 );
-			$self->AddHtml ("<tr>\n" . "<td style=\"vertical-align: top;\"><b>$name</b> <i>[$section]</i>\n" . "</td>\n");
-			$self->AddHtml ("<td style=\"vertical-align: top;\">$date\n" . "</td>\n");
-			$self->AddHtml ("<td style=\"vertical-align: top;\">-\n" . "</td>\n");
-			$self->AddHtml ("<td style=\"background-color: rgb(225, 255, 51); vertical-align: top; width: 100px; text-align: center;\"><marquee>In Progress</marquee>\n</td>");
-			$self->AddHtml ("<td style=\"background-color: rgb(255, 153, 0); vertical-align: top; width: 100px; text-align: center;\">Pending\n</td>");
-			$self->AddHtml ("\r\n</tr>\n");
-		};
-		close ( MARKFILE );
-	};
+	. "<th class=\"lines\" width=\"120\">Report\n"
+	. "</th></thead><tbody>\n" );
 	if ( -e $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' )
 	{
-		open ( TABLEFILE, "<" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
-		my ( $line, $date );
+		my ( $line, $date, @lines );
 		my ( $reportstatus ) = 0;
 		my ( $counter ) = 0;
-		foreach $line (<TABLEFILE>)
+		my ( $table ) = TableFile->new();
+		$table->SetFile( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
+		@lines = $table->ReadLast( $hsection->GetReportlines(), $page );	
+		foreach $line ( @lines)
 		{
-			$counter++ ;
-			if ( $counter <= $hsection->GetReportlines() )
-			{
-				chomp( $line );
-				my ( $mailed, $section, $name, $timestamp, $status, $size, $destsize, $destfree ) = split( /,/,$line );
-				my ( $date ) = substr( $timestamp, 0,2 ) . "/" . substr( $timestamp, 2,2 ) . "/" . substr( $timestamp, 4,4 ) . " " . substr( $timestamp, 8,2 ) . ":" . substr( $timestamp, 10,2 );
-				$self->AddHtml ("<tr>\n" . "<td style=\"vertical-align: top;\"><b>$name</b> <i>[$section]</i>\n" . "</td>\n");
-				$self->AddHtml ("<td style=\"vertical-align: top;\">$date\n" . "</td>\n");
-				$self->AddHtml ("<td nowrap style=\"vertical-align: middle; margin: 0 0 0 0; border: 1; padding: 0; width: 104px; background: rgb(120,120,255)\">\n");
+			chomp( $line );
+			my ( $statusbits, $section, $name, $timestamp, $status, $size, $destsize, $destfree,$id ) = split( /,/,$line );
+			my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( $timestamp );
+			my ( $date ) =  sprintf( "%02d/%02d/%02d %02d:%02d" ,$mday,( $mon + 1 ),( $year + 1900 ), $hour, $min );
+			$self->AddHtml ("<tr>\n" . "<td class=\"lines\"><a class=\"line\" href=\"/detail/$id\">[$section] $name</a>\n" . "</td>\n");
+			$self->AddHtml ("<td class=\"lines\">$date\n" . "</td>\n");
+			$self->AddHtml ("<td class=\"blue\">\n");
 			if ( $destsize ne 0 )
 			{
-				$self->AddHtml ("<div id=\"bar\">\n");
+				$self->AddHtml ("<div>\n");
 			};
 			$self->AddHtml (HumanBytes($size));
 			if ( $destsize ne 0 )
 			{
 				$self->AddHtml ("&nbsp;(" . int( 100 - ($destfree / $destsize)*100) . "%)\n");
-				$self->AddHtml ("<div nowrap style=\"background: rgb(255,0,0); color: rgb(255,255,0); overflow: hidden; border: 1; margin: 0px 0px 0px 0px; height: 2px; padding: 0; width: " . int( 100 - ($destfree / $destsize)*100)  . "% \">");
-				$self->AddHtml ("</div>\n</div>\n");
+				#$self->AddHtml ("<div class=\"bar\" nowrap style=\"width: " . int( 100 - ($destfree / $destsize)*100)  . "% \"></div>\n");
+				$self->AddHtml ("<div style=\"background: rgb(255,0,0); float: left; color: rgb(255,255,0); overflow: hidden; border: 0px; margin: 0px 0px 0px 0px; height: 4px; padding: 0; width: " . int( 100 - ($destfree / $destsize)*100)  . "% \"></div>");
+				$self->AddHtml ("</div>\n");
 			}
 			$self->AddHtml ("</td>\n");
-				if ( $status eq "OK" )
-				{
-					$self->AddHtml ("<td style=\"background-color: rgb(51, 255, 51); vertical-align: top; width: 100px; text-align: center;\">OK\n");
-				}
-				elsif ( $status eq "Warning" )
-				{
-					$self->AddHtml ("<td style=\"background-color: rgb(255, 153, 0); vertical-align: top; width: 100px; text-align: center;\">Warning\n");
-				}
-				else
-				{
-					$self->AddHtml ("<td style=\"background-color: rgb(255, 0, 0); vertical-align: top; width: 100px; text-align: center;\">ERROR\n");
-				};
-				if ( $mailed )
-				{
-					$self->AddHtml ("<td style=\"background-color: rgb(51, 255, 51); vertical-align: top; width: 100px; text-align: center;\">Sent\n");
-				}
-				else
-				{
-					$self->AddHtml ("<td style=\"background-color: rgb(255, 153, 0); vertical-align: top; width: 100px; text-align: center;\">Pending\n");
-				};
-				$self->AddHtml ("\n</td>\n" . "</tr>\n");
+			$self->AddHtml ("<td ");
+			if ( $statusbits & 24 ) # Invalid
+			{
+				$self->AddHtml ("class=\"red\"");
+			}
+			elsif ( $statusbits & 16 ) # Error
+			{
+				$self->AddHtml ("class=\"red\"");
+			}
+			elsif ( $statusbits & 8 ) # Warning
+			{
+				$self->AddHtml ("class=\"orange\"");
+			}
+			else # OK
+			{
+				$self->AddHtml ("class=\"green\"");
+			}
+			$self->AddHtml (">$status</td>\n");
+			$self->AddHtml ("<td ");
+			if ( ( $statusbits & 1 ) and ( $statusbits & 2 ) )
+			{
+				$self->AddHtml ("class=\"green\">Mail &amp; Report");
+			}
+			elsif ( $statusbits & 2 )
+			{
+				$self->AddHtml ("class=\"green\">Report");
+			}
+			elsif ( $statusbits & 1 )
+			{
+				$self->AddHtml ("class=\"green\">Mail");
+			}
+			else
+			{
+				$self->AddHtml ("class=\"orange\">Pending");
 			};
+			$self->AddHtml ("</td>\n" . "</tr>\n");
 		};
-		close ( TABLEFILE );
    	}
 	else
 	{
-		$self->AddHtml ("<tr><td colspan=\"5\" style=\"background-color: rgb(225, 153, 0); vertical-align: top; text-align: center;\">No data</td></tr>");
+		$self->AddHtml ("<tr><td class=\"orange\" colspan=\"5\">No data</td></tr>");
 	};
-	$self->AddHtml ("</tbody>\n" . "</table>\n" . "<br>\n");
+	$self->AddHtml ("</tbody>\n" . "</table>\n" . "\n");
 	$self->HtmlBodyBottom();
-	return ();
+	return();
 };
-##################################################################################
-sub HtmlLogs # () -> ()
+# Display detailed info for entry
+sub HtmlDetail # ( $uri ) -> ()
 {
 	my ( $self ) = shift;
-	$self->ParseHeaders;
+	my ( $uri ) = shift;
 	my ( $statusfile ) = $cmdln->GetStatusFileName;
+	$self->ParseHeaders;
 	if ( $self->{_method} eq "POST" )
 	{
 		$self->ParsePostdata();
 	};
 	my ( $gsection ) = GlobalSection->new();
 	my ( $hsection ) = HttpSection->new();
-	
-	$self->HtmlBodyTop();	
+	$self->HtmlBodyTop();
+	$uri =~ /\/detail\/(.*)/;
+	my ( $id ) = $1;
+	$self->AddHtml("<br><table class=\"lines\">\n"
+	. "<tbody>\n" );
+	# content here
+	my ( $table ) = TableFile->new();
+	$table->SetFile( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
+	my ( $line ) = $table->ReadLine( $id );
+	$self->AddHtml("Section: " . $table->GetSection() . "<br>\r\n" );
+	$self->AddHtml("Name: " . $table->GetName() . "<br>\r\n" );
+	$self->AddHtml("Timestamp: " . $table->GetHTimeStamp() . "<br>\r\n" );
+	$self->AddHtml("Result: " . $table->GetStatusText() . "<br>\r\n" );
+	$self->AddHtml("Size: " . $table->GetSize() . " (bytes) <br>\r\n" );
+	$self->AddHtml("Size of destnation: " . $table->GetDestSize() . " (bytes) <br>\r\n" );
+	$self->AddHtml("Space free on destnation: " . $table->GetDestFree() . " (bytes) <br>\r\n" );
+	$self->AddHtml("Report mailed: " . $table->GetMailrep() . "<br>\r\n" );
+	$self->AddHtml("Report sent to server: " . $table->GetCommrep() . "<br>\r\n" );
+	$self->AddHtml("More info to come....<br>\r\n");
+	$self->AddHtml("<br>Raw status file data: &gt;$line&lt; <br>\r\n" );
+	$self->AddHtml("</tbody>\n" . "</table>\n" . "<br>\n");
+	$self->HtmlBodyBottom();
+	return();
+};
+##################################################################################
+sub HtmlLogs # () -> ()
+{
+	my ( $self ) = shift;
+	# If not defined, page = 1
+	my ( $statusfile ) = $cmdln->GetStatusFileName;
+	$self->ParseHeaders;
 	if ( $self->{_method} eq "POST" )
+	{
+		$self->ParsePostdata();
+	};
+	my ($page ) = $self->{_postdata}->{"page"};
+	my ( $gsection ) = GlobalSection->new();
+	my ( $hsection ) = HttpSection->new();
+	$page = 1 unless $page;
+	my ( $lastpage ) = 1;
+	if ( -e $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' )
+	{
+		my ( $table ) = TableFile->new();
+		$table->SetFile( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
+		$lastpage = int( ( $table->GetNumLines() / $hsection->GetReportlines() ) + 0.5 );
+		$lastpage = 1 unless ( $lastpage gt 1 );
+	};
+	$self->HtmlBodyTop();
+	if ( ( $self->{_method} eq "POST" ) and ( defined $self->{_postdata}->{"file"} ) )
 	{
 		if ( -e $gsection->GetLogDir() . "/" . $self->{_postdata}->{"file"} . "." . lc( $self->{_postdata}->{"group"} ) )
 		{
@@ -1659,77 +1875,106 @@ sub HtmlLogs # () -> ()
 			$self->AddHtml( "<br>No data<br>\r\n" );
 		};
 	};
-	if ( $self->{_method} eq "GET" )
+	if ( ( $self->{_method} eq "GET" ) or ( defined $self->{_postdata}->{"page"} ) )
 	{
-		$self->AddHtml ( "<br><table nowrap style=\"width: 100%; text-align: left;\" border=\"1\" cellpadding=\"2\"\n"
-		. "cellspacing=\"2\">\n"
-		. "<tbody>\n"
-		. "<tr align=\"center\">\n"
-		. "<th colspan=\"5\" rowspan=\"1\" style=\"background-color: rgb(255, 255, 204); vertical-align: top;\">"
-		. "<font size=\"+2\">Logs</font><br>\n"
+		$self->AddHtml( "<tr><th class=\"buttons\">" );
+		if ( $page > 1 )
+		{
+			$self->AddHtml ( "<form class=\"left\" action=\"\" method=\"POST\">\n" );
+			$self->AddHtml ( '<input type="Submit" value="First page" name="group1">' . "\r\n" );
+			$self->AddHtml ( '<input type="hidden" name="page" value="' . 1 . '" size="20">' . "\r\n" );
+			$self->AddHtml ( "</form>" );
+			$self->AddHtml ( "<form class=\"left\" action=\"\" method=\"POST\">\n" );
+			$self->AddHtml ( '<input type="Submit" value="Previous page" name="group1">' . "\r\n" );
+			$self->AddHtml ( '<input type="hidden" name="page" value="' . ( $page - 1 ) . '" size="20">' . "\r\n" );
+			$self->AddHtml ( "</form>" );
+		};
+		if ( $page < $lastpage )
+		{
+			$self->AddHtml ( "<form class=\"right\" action=\"\" method=\"POST\">\n" );
+			$self->AddHtml ( '<input type="Submit" value="Last page" name="group2">' . "\r\n" );
+			$self->AddHtml ( '<input type="hidden" name="page" value="' . $lastpage . '" size="20">' . "\r\n" );
+			$self->AddHtml ( "</form>" );
+			$self->AddHtml ( "<form class=\"right\" action=\"\" method=\"POST\">\n" );
+			$self->AddHtml ( '<input type="Submit" value="Next page" name="group2">' . "\r\n" );
+			$self->AddHtml ( '<input type="hidden" name="page" value="' . ( $page + 1 ) . '" size="20">' . "\r\n" );
+			$self->AddHtml ( "</form>" );
+		};
+		$self->AddHtml( "</th></tr><tr><td>" );
+		$self->AddHtml ( "<table class=\"lines\">\n" );
+		$self->AddHtml ( "<thead>\n"
+		. "<tr>\n"
+		. "<th colspan=\"5\" class=\"pages\">"
+		. "Logs - Page " . $page . " of " . $lastpage . "\n"
 		. "</th>\n"
 		. "</tr>\n"
 		. "<tr>\n"
-		. "<th style=\"vertical-align: top; text-align: center;\">Section<br>\n"
+		. "<th class=\"lines\">Section<br>\n"
 		. "</th>\n"
-		. "<th style=\"vertical-align: top; width: 120px; text-align: center;\">Date/Time<br>\n"
+		. "<th class=\"lines\" width=\"120\">Date/Time<br>\n"
 		. "</th>\n"
-		. "<th style=\"vertical-align: top; width: 100px; text-align: center;\">Logfile Size<br>\n"
+		. "<th class=\"lines\" width=\"100\">Logfile Size<br>\n"
 		. "</th>\n"
-		. "<th style=\"vertical-align: top; width: 100px; text-align: center;\">Listfile Size<br>\n"
+		. "<th class=\"lines\" width=\"100\">Listfile Size<br>\n"
 		. "</th>\n"
-		. "</tr>\n" );
-		if ( -e $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.mkr' )
+		. "</tr></thead><tbody>\n" );
+		if ( -e $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' )
 		{
-			open ( MARKFILE, "<" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.mkr' );
-	   		#print MARKFILE  "0," . $self->GetSection() . "," . $self->GetName() . "," . $date . "\n";
-			my ( $line, $size );
-			foreach $line (<MARKFILE>)
+			my ( $line, $date, @lines );
+			my ( $reportstatus ) = 0;
+			my ( $counter ) = 0;
+			my ( $table ) = TableFile->new();
+			$table->SetFile( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
+			@lines = $table->ReadLast( $hsection->GetReportlines(), $page );	
+			foreach $line ( @lines )
 			{
 				chomp( $line );
-				my ( $mailed, $section, $name, $timestamp ) = split( /,/,$line );
-				my ( $date ) = substr( $timestamp, 0,2 ) . "/" . substr( $timestamp, 2,2 ) . "/" . substr( $timestamp, 4,4 ) . " " . substr( $timestamp, 8,2 ) . ":" . substr( $timestamp, 10,2 );
-				$self->AddHtml ( "<tr>\n" . "<td style=\"vertical-align: top;\"><b>$name</b> <i>[$section]</i>(In progress)\n" . "</td>\n" );
-				$self->AddHtml ( "<td style=\"vertical-align: top;\">$date\n" . "</td>\n" );
-				$size = -s $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".log";
-	   			$self->AddHtml ( "<td style=\"vertical-align: top;\">" . HumanBytes($size) . "\n" );
-				$size = -s $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".lst";
-	   			$self->AddHtml ( "<td style=\"vertical-align: top;\">" . HumanBytes($size) . "\n" );
-	   			$self->AddHtml ( "\n</td>\n" . "</tr>\n" );
-		   	};
-			close ( MARKFILE );
-		};
-		open ( TABLEFILE, "<" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
-		my ( $line, $date );
-		my ( $reportstatus ) = 0;
-		my ( $counter ) = 0;
-		foreach $line (<TABLEFILE>)
-		{
-			$counter++ ;
-			if ( $counter <= $hsection->GetReportlines() )
-			{
-				chomp( $line );
-				my ( $mailed, $section, $name, $timestamp, $status, $size ) = split( /,/,$line );
-				my ( $date ) = substr( $timestamp, 0,2 ) . "/" . substr( $timestamp, 2,2 ) . "/" . substr( $timestamp, 4,4 ) . " " . substr( $timestamp, 8,2 ) . ":" . substr( $timestamp, 10,2 );
-				$self->AddHtml ( "<tr>\n" . "<td style=\"vertical-align: top;\">\r\n" );
-				$self->AddHtml ( "<form action=\"logs\" method=\"POST\" style=\"margin: 0px; padding: 0px;\">\n" );
-				$self->AddHtml ( '&nbsp;<input type="Submit" value="Log" name="group">' );
-				$self->AddHtml ( '&nbsp;<input type="Submit" value="Lst" name="group">' . "\r\n" );
-		   		$self->AddHtml ( '<input type="hidden" name="file" value="' .  "$section.$timestamp" . '" size="20">' . "\r\n" );
-				$self->AddHtml ( "&nbsp;<b>$name</b> [$section]" );
-				$self->AddHtml ( "</form>" );
-				$self->AddHtml ( "</td>\n" );
-				$self->AddHtml ( "<td style=\"vertical-align: top;\">$date\n" . "</td>\n" );
-				$size = -s $gsection->GetLogDir() . "/" . $section . "." . $timestamp . ".log";
-				$self->AddHtml ( "<td style=\"vertical-align: top;\">" . HumanBytes($size) . "\n" . "</td>\n" );
-				$size = -s $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".lst";
-				$self->AddHtml ( "<td style=\"vertical-align: top;\">" . HumanBytes($size) . "\n" . "</td>\n" );
-				$self->AddHtml ( "\r\n</tr>\n" );
+				my ( $statusbits, $section, $name, $timestamp, $status, $size, $destsize, $destfree,$id ) = split( /,/,$line );
+				my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( $timestamp );
+				my ($date ) = $mday . "/" . ( $mon + 1 ) . "/" . ( $year + 1900 ) . " " . sprintf( "%02d:%02d" , $hour, $min );
+				$self->AddHtml( "<tr>\n" . "<td class=\"col\">\r\n" );
+				
+				if ( -e $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".log" )
+				{
+					$self->AddHtml( "<form class=\"right\" action=\"logs\" method=\"POST\" >\n" );
+					if ( -e $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".lst" )
+					{
+						$self->AddHtml( '<input type="Submit" value="File list" name="group" height=\"13\">' . "\r\n" );
+					};
+					$self->AddHtml( '<input type="Submit" value="Log file" name="group" height=\"13\">' . "\r\n" );
+					$self->AddHtml( '<input type="hidden" name="file" value="' .  "$section.$timestamp" . '" size="20">' . "\r\n" );
+					$self->AddHtml( "</form>" );
+				}
+				$self->AddHtml( "[$section] $name" );
+				$self->AddHtml( "</td>\n" );
+				$self->AddHtml( "<td class=\"lines\">$date\n" . "</td>\n" );
+				if ( -e $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".log" )
+				{
+					$size = -s $gsection->GetLogDir() . "/" . $section . "." . $timestamp . ".log";
+					$self->AddHtml( "<td class=\"lines\">" . HumanBytes($size) . "\n" . "</td>\n" );
+				}
+				else
+				{
+					$self->AddHtml( "<td class=\"lines\">n/a\n" . "</td>\n" );
+				};
+				if ( -e $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".lst" )
+				{
+					$size = -s $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".lst";
+					$self->AddHtml( "<td class=\"lines\">" . HumanBytes($size) . "\n" . "</td>\n" );
+				}
+				else
+				{
+					$self->AddHtml( "<td class=\"lines\">n/a\n" . "</td>\n" );
+				};
+				$self->AddHtml( "\r\n</tr>\n" );
 			};
-	   	};
-		close ( TABLEFILE );
-		$self->AddHtml ( "</tbody>\n" . "</table>\n" . "<br>\n" );
+		}
+		else
+		{
+			$self->AddHtml( "<tr><td class=\"orange\"  colspan=\"5\">No data</td></tr>");
+		};
 	};
+	$self->AddHtml("</tbody>\n" . "</table>\n" . "\n");
 	$self->HtmlBodyBottom();
 	return ();
 };
@@ -1757,224 +2002,6 @@ sub HtmlNotfound # () -> ()
 	#};
 	$self->HtmlBodyBottom();
 	return ();
-};
-sub HtmlBackup # () -> ()
-{
-	use MIME::Base64;
-	my ( $self ) = shift;
-	my ( $var, $val );
-	$self->ParseHeaders();
-	my ( $hsection ) = HttpSection->new();
-	my $authstring = $hsection->GetBackupUser() . ":" . $hsection->GetBackupPassword();
-	if ( $self->{_method} eq "POST" )
-	{
-		$self->ParsePostdata();
-	};
-	if ( defined ( $self->{_headerlist}->{"authorization"} ) )
-	{
-		#print " Typed : $headers{'authorization'} Listed : Basic " . encode_base64("user:password","");
-		if ( $self->{_headerlist}->{"authorization"} eq "Basic " . encode_base64("$authstring","") )
-		{
-			#authentication OK!
-		}
-		else
-		{
-			#authentication NOT ok!
-			return(0);
-		};
-	}
-	else
-	{
-		return(0);
-	};
-	$self->HtmlBodyTop();
-	$self->AddHtml( "<br><b>Sections:</b><br><br>" );
-	if (-e $self->{_configfile} )
-	{
-		my $cfg = Config::IniFiles->new( -file => $self->{_configfile} );
-		foreach my $section ( $cfg->Sections)
-		{
-			if ( $section ne 'global' & $section ne 'mail' & $section ne 'http' & $section ne 'update' )
-			{
-				$self->AddHtml( "<hr>\r\n" );
-				$self->AddHtml( '<form action="/dobackup" method="POST"><input type="Submit" value="Backup">' . "\r\n " );
-				$self->AddHtml( "Section: <b>[ $section ]" . "</b> "  );
-				$self->AddHtml( " -- Name: <i>" . $cfg->val($section, 'name' ) . "</i> -- Type: " . $cfg->val($section, 'type' ));
-				$self->AddHtml( "&nbsp;&nbsp;" . '<input type="hidden" name="section" value="' .  "$section" . '" size="20" >' );
-				$self->AddHtml( '</form>' . "\r\n" );
-					
-			};
-		};
-	};
-	$self->HtmlBodyBottom();
-	return (1);
-};
-sub HtmlDoBackup # () -> ()
-{
-	use MIME::Base64;
-	use Config;
-	my ( $self ) = shift;
-	my ( $var, $val );
-	$self->ParseHeaders();
-	my ( $hsection ) = HttpSection->new();
-	my $authstring = $hsection->GetBackupUser() . ":" . $hsection->GetBackupPassword();
-	if ( $self->{_method} eq "POST" )
-	{
-		$self->ParsePostdata();
-	};
-	if ( defined ( $self->{_headerlist}->{"authorization"} ) )
-	{
-		#print " Typed : $headers{'authorization'} Listed : Basic " . encode_base64("user:password","");
-		if ( $self->{_headerlist}->{"authorization"} eq "Basic " . encode_base64("$authstring","") )
-		{
-			#authentication OK!
-		}
-		else
-		{
-			#authentication NOT ok!
-			return(0);
-		};
-	}
-	else
-	{
-		return(0);
-	};
-	$self->SendChunkedHeaders();
-	$self->HtmlBodyTop();
-	$self->SendBodyChunk();
-	$self->AddHtml( "<br>Executing section <b>" . $self->{_postdata}->{'section'} . "</b><br>" );
-	$self->AddHtml( "<i>(This page will show the output of the executed section and will take as long to load as it takes to execute the section.)</i><br>" );
-	if (-e $self->{_configfile} )
-	{
-		my $cfg = Config::IniFiles->new( -file => $self->{_configfile} );
-		$self->AddHtml( "<hr>\r\n" );
-		my ( $lang ) = undef;
-		my ( $publicip, $line );
-		my ( $logdate ) = ::GetLogDate();
-		my $starttime = time();
-		my ( @logfiles );
-		my ( @filelist );
-		my ( $globalstatus ) = 0;
-		$publicip = ::GetIP();
-		if ( defined $cfg)
-		{
-			my ( $seconds );
-			my ( $entry ) = $self->{_postdata}->{'section'};
-			my $section = DoSection->new();
-			$section->SetHtml("1");
-			$section->SetSection( $entry );
-			$section->SetLogDate( $logdate );
-			$self->SendBodyChunk();
-			$section->WriteLog( "START ************ bck version " . $version . " *************", 1 );
-			$section->WriteLog( "Start time : " . ::GetTime() , 1 );
-			$section->WriteLog( "Running on : " . $Config{'osname'} . " / " . $Config{'osvers'} . " [" . $Config{'archname'} . "] , Perl version : v" . $Config{'PERL_REVISION'} . "." . $Config{'PERL_VERSION'} . "." . $Config{'PERL_SUBVERSION'} , 1 );
-			$section->WriteLog( "Client : " . $gsection->GetClient() . " / Public IP Address : $publicip", 1 );
-			if ( $section->LoadSection( $self->{_configfile} ) == 0 )
-			{
-				if ( $section->CalcSize() == 0 )
-				{
-					my ( $status ) = $section->Backup();
-					if ( $status == 0 )
-					{
-						#section ok
-						$section->WriteLog( "Section [" . $section->{_section} . "]  (" . $section->GetSize() . " bytes) ok." , 1);
-						$section->WriteTable();
-					}
-					else
-					{
-						#section not ok
-						$section->WriteLog( "Section [" . $section->{_section} . "]  (" . $section->{_size} . ") errors/warnings." , 1);
-						$section->WriteTable();
-					};
-				}
-				else
-				{
-					#section size larger then maxsize
-					$section->WriteLog( "Section [" . $section->{_section} . "] size (" . $section->{_size} . ") larger then maxsize (" . $section->{_maxsize} . ")." , 1);
-					$section->WriteTable();
-				};
-			}
-			else
-			{
-				#section does not exist
-				$section->WriteLog( "Section [" . $section->{_section} . "] does not exist." , 1);
-				$section->WriteTable();
-			};
-			$section->WriteLog( "End time : " . ::GetTime() , 1 );
-			$seconds = (time() - $starttime);
-			my ( $timestr ) =  ($seconds/(60*60))%24 . ":" . ($seconds/60)%60 . ":" . $seconds%60 ;
-			$section->WriteLog( "Total time elapsed (h:m:s): " . $timestr , 1 );
-			$section->WriteLog( "END   ************ bck version " . $version . " *************", 1 );
-	}
-		else
-		{
-			#Configuration file error
-		};
-
-	};
-	$self->AddHtml( "<hr>\r\n" );
-	$self->SendBodyChunk();
-	$self->HtmlBodyBottom();
-	$self->SendBodyChunk();
-	$self->SendBodyChunk();
-	return (1);
-};
-sub HtmlRestore # () -> ()
-{
-	use MIME::Base64;
-	my ( $self ) = shift;
-	my ( $var, $val );
-	$self->ParseHeaders();
-	my ( $hsection ) = HttpSection->new();
-	my $authstring = $hsection->GetBackupUser() . ":" . $hsection->GetBackupPassword();
-	if ( $self->{_method} eq "POST" )
-	{
-		$self->ParsePostdata();
-	};
-	if ( defined ( $self->{_headerlist}->{"authorization"} ) )
-	{
-		#print " Typed : $headers{'authorization'} Listed : Basic " . encode_base64("user:password","");
-		if ( $self->{_headerlist}->{"authorization"} eq "Basic " . encode_base64("$authstring","") )
-		{
-			#authentication OK!
-		}
-		else
-		{
-			#authentication NOT ok!
-			return(0);
-		};
-	}
-	else
-	{
-		return(0);
-	};
-	$self->HtmlBodyTop();
-	$self->AddHtml( "<br><b>Sections:</b><br><br>" );
-	if (-e $self->{_configfile} )
-	{
-		my $cfg = Config::IniFiles->new( -file => $self->{_configfile} );
-		foreach my $section ( $cfg->Sections)
-		{
-			if ( $section ne 'global' & $section ne 'mail' & $section ne 'http' & $section ne 'update' )
-			{
-				$self->AddHtml( "<hr>\r\n" );
-				if (  $cfg->val($section, 'type' ) eq "local" | $cfg->val($section, 'type' ) eq "part" | $cfg->val($section, 'type' ) eq "tape" )
-				{
-					$self->AddHtml( '<form action="/docatalog" method="POST"><input type="Submit" value="Restore">' . "\r\n " );
-				}
-				else
-				{
-					$self->AddHtml( '<form action="/docatalog" method="POST"><input type="Submit" value="Restore" disabled="true">' . "\r\n " );
-				};
-				$self->AddHtml( "Section: <b>[ $section ]" . "</b> "  );
-				$self->AddHtml( " -- Name: <i>" . $cfg->val($section, 'name' ) . "</i> -- Type: " . $cfg->val($section, 'type' ));
-				$self->AddHtml( "&nbsp;&nbsp;" . '<input type="hidden" name="section" value="' .  "$section" . '" size="20" >' );
-				$self->AddHtml( '</form>' . "\r\n" );
-			};
-		};
-	};
-	$self->HtmlBodyBottom();
-	return (1);
 };
 sub HtmlConfig # () -> ()
 {
@@ -2265,7 +2292,6 @@ sub HtmlTest # () -> ()
 	$self->AddHtml( '<br>Form submit testing<br>' );
 	$self->AddHtml( '<form action="test" method="POST">Data1: <input type="text" name="data1" value="Mickey" size="20"><br>Data2: <input type="text" name="data2" value="Mouse" size="20"><br><input type="submit" value="Submit"></form>' );
 	$self->AddHtml( '<form action="test" method="POST"><input type="hidden" name="data4" value="Mickey" size="20"><br>Data3: <input type="text" name="data3" value="Mouse" size="20"><br><input type="submit" value="Submit"></form>' );
-	#PrintLogo();
 	$self->HtmlBodyBottom();
 	return ();
 };
@@ -2277,46 +2303,235 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( '<html>' . "\r\n" );
 	$self->AddHtml( '<head>' . "\r\n" );
 	$self->AddHtml( '<meta http-equiv="Pragma" content="no-cache" >' . "\r\n" );
+	$self->AddHtml( '<meta http-equiv="Content-type" content="text/html;charset=UTF-8">' );
 	$self->AddHtml( '<meta http-equiv="expires" content="-1" >' . "\r\n" );
 	$self->AddHtml( '<meta name="Robots" content="noindex" >' . "\r\n" );
 	$self->AddHtml( '<title>bck-backup</title>' . "\r\n" );
 	$self->AddHtml( '<style type="text/css">' . "\r\n" );
 	$self->AddHtml( '<!--' . "\r\n" );
-	$self->AddHtml( '#bar {' . "\r\n" );
-	$self->AddHtml( 'background: rgb(120,120,255);' . "\r\n" );
-	$self->AddHtml( 'padding: 0;' . "\r\n" );
-	$self->AddHtml( 'margin: 0 0 0 0px;' . "\r\n" );
-	$self->AddHtml( 'vertical-align: 50%;' . "\r\n" );
-	$self->AddHtml( 'width: 100%;' . "\r\n" );
-	$self->AddHtml( 'overflow: visible;' . "\r\n" );
+	$self->AddHtml( 'body {' );
+	$self->AddHtml( 'background: #CECECE;' );
+	$self->AddHtml( 'color: #000000;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'bar {' );
+	$self->AddHtml( 'border-color: rgb(255,0,0);' );
+	$self->AddHtml( 'border: 0px;' );
+	$self->AddHtml( 'padding: 0;' );
+	$self->AddHtml( 'height: 2px;' );
+	$self->AddHtml( 'margin: 0 0 0 0px;' );
+	$self->AddHtml( 'overflow: hidden;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'a.menu {' );
+	$self->AddHtml( 'color: #000099;' );
+	$self->AddHtml( 'font-size: 1.3em;' );
+	$self->AddHtml( 'font-weight: bold;text-decoration: none;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'a.line {' );
+	$self->AddHtml( 'color: #000000;' );
+	$self->AddHtml( 'font-size: 1em;' );
+	$self->AddHtml( 'padding: 0px 5px 0px 5px;' );
+	$self->AddHtml( 'font-weight: bold;text-decoration: none;' );
+	$self->AddHtml( 'float: left;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.top {' );
+	$self->AddHtml( 'background: #8080FF;' );
+	$self->AddHtml( 'color: #000099;' );
+	$self->AddHtml( 'padding: 10px;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'div.subtitle {' );
+	$self->AddHtml( 'font-size: 1.1em;' );
+	$self->AddHtml( 'font-style: italic;' );
+	$self->AddHtml( 'text-indent: 70px;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'div.title {' );
+	$self->AddHtml( 'font-size: 3.3em;' );
+	$self->AddHtml( 'font-weight: bold;' );
+	$self->AddHtml( 'text-indent: 70px;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'table.main {' );
+	$self->AddHtml( 'table-layout: fixed;' );
+	$self->AddHtml( 'width: 100%;' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'border-collapse: collapse;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'table.list {' );
+	$self->AddHtml( 'width: 100%;' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'border-color: #CECECE;' );
+	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'border-collapse: collapse;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'span.menu {' );
+	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'vertical-align: top;' );
+	$self->AddHtml( 'background: #8080FF;' );
+	$self->AddHtml( 'padding: 6px;' );
+	$self->AddHtml( 'margin: 6px;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'table.lines {' );
+	$self->AddHtml( 'width: 100%;' );
+	$self->AddHtml( 'border-width: 2px;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'border-collapse: collapse;' );
+	$self->AddHtml( 'text-align: left;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'th.buttons {' );
+	$self->AddHtml( 'border-width: 0px;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'display:  block;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'th.lines {' );
+	$self->AddHtml( 'border-width: 2px;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'background: #707070;' );
+	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'padding: 2px;' );
+	$self->AddHtml( 'margin: 2px;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'th.pages {' );
+	$self->AddHtml( 'border-width: 2px;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'background: rgb(255, 255, 204);' );
+	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'font-size: 1.5em;' );
+	$self->AddHtml( 'font-weight: bold;' );
+	$self->AddHtml( 'padding: 2px;' );
+	$self->AddHtml( 'margin: 2px;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.lines {' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'background: #AEAEAE;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'height: 27px;' );
+	$self->AddHtml( 'overflow: hidden;' );
+	$self->AddHtml( 'padding: 2px;' );
+	$self->AddHtml( 'margin: 2px;' );
+	$self->AddHtml( 'vertical-align: middle;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.col {' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'background: #AEAEAE;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'text-indent: 10px;' );
+	$self->AddHtml( 'height: 27px;' );
+	$self->AddHtml( 'padding: 0px;' );
+	$self->AddHtml( 'margin: 2px;' );
+	$self->AddHtml( 'vertical-align: middle;' );
+	$self->AddHtml( 'border-collapse: collapse;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.header {' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'background: #F4FA58;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'height: 27px;' );
+	$self->AddHtml( 'overflow: hidden;' );
+	$self->AddHtml( 'padding: 2px;' );
+	$self->AddHtml( 'margin: 2px;' );
+	$self->AddHtml( 'vertical-align: middle;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.remote {' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'background: #58FAF4;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'height: 27px;' );
+	$self->AddHtml( 'overflow: hidden;' );
+	$self->AddHtml( 'padding: 2px;' );
+	$self->AddHtml( 'margin: 2px;' );
+	$self->AddHtml( 'vertical-align: middle;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.green {' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'background-color: rgb(51, 255, 51);' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'vertical-align: middle;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.red {' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'background-color: rgb(255, 0, 0);' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'vertical-align: middle;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.orange {' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'background-color: rgb(255, 153, 0);' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'vertical-align: middle;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.blue {' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'background-color: rgb(120,120,255);' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'vertical-align: middle;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.menu {' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'background: #707070;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'padding: 10px;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.footer{' );
+	$self->AddHtml( 'color: #202020;' );
+	$self->AddHtml( 'background: #B0B0B0;' );
+	$self->AddHtml( 'text-align: right;' );
+	$self->AddHtml( 'font-size: 0.8em;' );
+	$self->AddHtml( 'font-style: italic;' );
+	$self->AddHtml( 'padding-right: 40px;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'form.left{' );
+	$self->AddHtml( 'float: left;' );
+	$self->AddHtml( 'padding: 1px 15px 1px 15px;' );
+	$self->AddHtml( 'margin: 0px 0px 0px 0px;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'form.right{' );
+	$self->AddHtml( 'float: right;' );
+	$self->AddHtml( 'padding: 1px 15px 1px 15px;' );
+	$self->AddHtml( 'margin: 0px 0px 0px 0px;' );
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( '-->' . "\r\n" );
 	$self->AddHtml( '</style>' . "\r\n" );
 	$self->AddHtml( '</head>' . "\r\n" );
 	$self->AddHtml( '<body>' . "\r\n" );
-	$self->AddHtml( '<table border="5" bgcolor="#E0E0E0" width="98%" cellpadding="2" cellspacing="0" align="center">' . "\r\n" );
+	$self->AddHtml( '<table class="main">' . "\r\n" );
 	$self->AddHtml( '<tr>' . "\r\n" );
-	$self->AddHtml( '<td colspan="2" bgcolor="#8080FF" height="130" align="left">' . "\r\n" );
-	$self->AddHtml( '<font size="7" color="#000099">' . "\r\n" );
-	$self->AddHtml( '&nbsp;&nbsp;&nbsp;&nbsp;<b>bck-backup</b>' . "\r\n" );
-	$self->AddHtml( '</font>' . "\r\n" );
-	$self->AddHtml( "<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><b>Version</b> : $version </i>" . "\r\n" );
-	$self->AddHtml( "<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><b>Configfile</b> : $self->{_configfile}</i>" . "\r\n" );
-	$self->AddHtml( "<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><b>Instalation</b> : $gsection->{_client}</i>" . "\r\n" );
+	$self->AddHtml( '<td class="top">' . "\r\n" );
+	$self->AddHtml( '<div class="title">bck-backup</div>' . "\r\n" );
+	$self->AddHtml( "<div class=\"subtitle\"><b>Version</b> : $version" . "</div>\r\n" );
+	$self->AddHtml( "<div class=\"subtitle\"><b>Configfile</b> : $self->{_configfile}" . "</div>\r\n" );
+	$self->AddHtml( "<div class=\"subtitle\"><b>Instalation</b> : $gsection->{_client}" . "</div>\r\n" );
 	$self->AddHtml( '</td>' . "\r\n" );
 	$self->AddHtml( '</tr>' . "\r\n" );
 	$self->AddHtml( '<tr>' . "\r\n" );
-	$self->AddHtml( '<td width="1%" align="center" valign="top"><br>' . "\r\n" );
-	$self->AddHtml( '<table border="0" width="110" cellspacing="15">' . "\r\n" );
-	$self->AddHtml( '<tr><td height="50" align="center" bgcolor="#BBBBBB"><a href="/">Home</a></td></tr>' . "\r\n" );
-	$self->AddHtml( '<tr><td height="50" align="center" bgcolor="#BBBBBB"><a href="/backup">Backup</a></td></tr>' . "\r\n" );
-	$self->AddHtml( '<tr><td height="50" align="center" bgcolor="#BBBBBB"><a href="/restore">Restore</a></td></tr>' . "\r\n" );
-	$self->AddHtml( '<tr><td height="50" align="center" bgcolor="#BBBBBB"><a href="/config">Config</a></td></tr>' . "\r\n" );
-	$self->AddHtml( '<tr><td height="50" align="center" bgcolor="#BBBBBB"><a href="/logs">Logs</a></td></tr>' . "\r\n" );
-	$self->AddHtml( '<tr><td height="50" align="center" bgcolor="#BBBBBB"><a href="/test">Test</a></td></tr>' . "\r\n" );
-	$self->AddHtml( '</table>' . "\r\n" );
-	$self->AddHtml( '</td>' . "\r\n" );
-	$self->AddHtml( '<td valign="top">' . "\r\n" );
+	$self->AddHtml( '<td class="menu">' . "\r\n" );
+	$self->AddHtml( '<span class="menu"><a class="menu" href="/">Reports</a></span>' . "\r\n" );
+	#$self->AddHtml( '<span class="menu"><a class="menu" href="/backup">Backup</a></span>' . "\r\n" );
+	#$self->AddHtml( '<span class="menu"><a class="menu" href="/restore">Restore</a></span>' . "\r\n" );
+	$self->AddHtml( '<span class="menu"><a class="menu" href="/logs">Logs</a></span>' . "\r\n" );
+	$self->AddHtml( '<span class="menu"><a class="menu" href="/config">Config</a></span>' . "\r\n" );
+	#$self->AddHtml( '<span class="menu"><a class="menu" href="/test">Test</a></span>' . "\r\n" );
+	$self->AddHtml( '</td></tr>' . "\r\n" );
+	$self->AddHtml( '<tr><td>' . "\r\n" );
 	return();
 }
 sub HtmlBodyBottom # () -> ()
@@ -2324,10 +2539,9 @@ sub HtmlBodyBottom # () -> ()
 	my ( $self ) = shift;
 	$self->AddHtml( '</td>' . "\r\n" );
 	$self->AddHtml( '</tr>' . "\r\n" );
-	$self->AddHtml( '<tr><td colspan="2" bgcolor="#666666" align="center">' . "\r\n" );
-	$self->AddHtml( '<font color="#DDDDDD"><i>bck-backup Web interface</i></font>' . "\r\n" );
-	$self->AddHtml( '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . "\r\n" );
-	$self->AddHtml( '<font size="2"><i>' . "Running on : " . $Config{'osname'} . " / " . $Config{'osvers'} . " [" . $Config{'archname'} . "] , Perl version : v" . $Config{'PERL_REVISION'} . "." . $Config{'PERL_VERSION'} . "." . $Config{'PERL_SUBVERSION'} . "</i></font>\r\n" );
+	$self->AddHtml( '<tr><td class="footer">' . "\r\n" );
+	$self->AddHtml( 'bck-backup Web interface' . "\r\n" );
+	$self->AddHtml( "Running on : " . $Config{'osname'} . " / " . $Config{'osvers'} . " [" . $Config{'archname'} . "] , Perl version : v" . $Config{'PERL_REVISION'} . "." . $Config{'PERL_VERSION'} . "." . $Config{'PERL_SUBVERSION'} . "\r\n" );
 	$self->AddHtml( '</td></tr>' . "\r\n" );
 	$self->AddHtml( '</table>' . "\r\n" );
 	$self->AddHtml( '</body>' . "\r\n" );
@@ -2418,6 +2632,7 @@ sub new
 		_version	=> undef,
 		_help		=> undef,
 		_http		=> undef,
+		_report		=> undef,
 		_mail		=> undef,
 		_statusfile	=> undef
 	};
@@ -2479,7 +2694,12 @@ sub GetHttpFlag {
 	my ( $self ) = @_;
 	return $self->{_http};
 };
-#accessor method for http
+#accessor method for report
+sub GetReportFlag {
+	my ( $self ) = @_;
+	return $self->{_report};
+};
+#accessor method for mail
 sub GetMailFlag {
 	my ( $self ) = @_;
 	return $self->{_mail};
@@ -2487,7 +2707,7 @@ sub GetMailFlag {
 #parse command line and fill class
 sub ParseCommandLine{ # () -> (ok)
 	my ( $self ) = @_;
-	my ( $ok, $verbose, $configfile, $langfile, $help, $version, $debug, $install, $check, $do, $http, $mail, $update);
+	my ( $ok, $verbose, $configfile, $langfile, $help, $version, $debug, $install, $check, $do, $http, $report, $mail, $update);
 	my ( $status ) = 0;
 	$ok = @ARGV;
 	if ( $ok > 0 )
@@ -2504,7 +2724,8 @@ sub ParseCommandLine{ # () -> (ok)
 			'mail'		=> \$mail,
 			'version'	=> \$version,
 			'help|?'	=> \$help,
-			'http'		=> \$http
+			'http'		=> \$http,
+			'report'	=> \$report
 		);
 	}
 	else
@@ -2606,6 +2827,15 @@ sub ParseCommandLine{ # () -> (ok)
 	else
 	{
 		$self->{_http} = 0;
+	};
+	if (defined $report)
+	{
+		$self->{_report} = 1;
+		return (0);
+	}
+	else
+	{
+		$self->{_report} = 0;
 	};
 	if ( not ( -f $self->{_configfile} ) )
 	{
@@ -2907,6 +3137,474 @@ sub GetReportlines
 ##################################################################################
 ##################################################################################
 #
+# Class ReportSection : Http configuration file section class
+#
+##################################################################################
+package ReportSection;
+sub new
+{
+	my ($class) = shift;
+	my ($configfilename) =  $cmdln->GetConfigFileName();
+	my ($server, $port, $password, $serverauth);
+	if (-r $configfilename )
+	{
+		my $cfg 	= Config::IniFiles->new( -file => $configfilename );
+		unless ($cfg)
+		{
+			die "Error in loading configuration file `$configfilename'\n Use --check option for detailed information\n";
+		}
+		$server			= $cfg->val('report', 'server');
+		$port			= $cfg->val('report', 'port');
+		$password		= $cfg->val('report', 'password');
+		$serverauth		= $cfg->val('report', 'serverauth');
+	};
+	my $self =
+	{
+		_server			=> $server,
+		_port			=> $port,
+		_password		=> $password,
+		_serverauth		=> $serverauth
+	};
+	bless $self, $class;
+	return $self;
+};
+#accessor method for server
+sub GetServer
+{
+	my ( $self ) = shift;
+	return $self->{_server};
+};
+#accessor method for port
+sub GetPort
+{
+	my ( $self ) = shift;
+	return $self->{_port};
+};
+#accessor method for password
+sub GetPassword
+{
+	my ( $self ) = shift;
+	return $self->{_password};
+};
+#accessor method for password
+sub GetServerAuth
+{
+	my ( $self ) = shift;
+	return $self->{_serverauth};
+};
+##################################################################################
+# End Class report Section
+##################################################################################
+##################################################################################
+#
+# Class TableFile : Read/Write table file class
+#
+##################################################################################
+#
+# status table field def:
+#
+# |Status bits|,|Section Name|,|Section Description|,|Timestamp|,|Status|,|Size|,|Dest size|,|Dest free|
+#      |                                                 |          |       |         |         |
+#      |                                                 |          |       |         |         -> Bytes free on destination
+#      |                                                 |          |       |         -> Size of destination in bytes
+#      |                                                 |          |       -> Size of setion
+#      |                                                 |          -> Text field status [OK, ERROR, Warning]
+#      |                                                 -> Internal timestamp format ddmmyyyyhhmm
+#      -> 8 bits [7 6 5 4 3 2 1 0]
+#         Bit 0 : 0-Not send by mail            1-Send by mail                 (1)
+#         Bit 1 : 0-Not send to remote server   1-Send to remote server        (2)
+#         Bit 2 : 0-Line                        1-Header                       (4)
+#         Bit 3&4 : 00-OK  01-Warning  10-ERROR  11-Not Available [Defines color used in Status column] (8&16)
+#         Bit 5 : 0-Finished		1-In progress                                      (32)
+#         Bit 6 : 0-No alarm               1-Alarm                                               (64)
+#         Bit 7 : 0-Local 1-Remote                                             (128)
+#
+##################################################################################
+#
+# 1. Check if locked
+# 2. If locked, wait until unlocked
+# 3. If reading, no lock needed, read
+# 4. If writing, lock, write and unlock
+# 5. Done
+#
+package TableFile;
+# We use tied arrays as this allows us to modify anywhere in the file
+use Tie::File;
+sub new
+{
+	my ( $class ) = shift;
+	my $self =
+	{
+		# Public values
+		_file		=> undef, # string :path/filename of tablefile
+		_mailrep	=> 0, # 1 bit  -
+		_commrep	=> 0, # 1 bit   |
+		_isheader	=> 0, # 1 bit   |-> statusbits [ 8 bits ]
+		_status		=> 0, # 2 bits  |
+		_alarm		=> 0, # 1 bit   |
+		_finished	=> 0, # 1 bit  |
+		_isremote	=> 0, # 1 bit  -
+		_section	=> "", # string
+		_name		=> "", # string
+		_timestamp	=> 0, # string : Internal timestamp (will change to unix timestamp)
+		_statustext	=> "", # string
+		_size		=> 0, # integer
+		_destsize	=> 0, # integer
+		_destfree	=> 0, # integer
+		# Private values
+		_statusbits	=> 0  # bit array as defined above
+	};
+	bless $self, $class;
+	return $self;
+};
+# ReadLast -> Read the last n lines and return an array, used for web interface
+sub ReadLast # ( numlines, page ) -> ( @lines )
+{
+	my ( $self ) = shift;
+	my ( $numlines ) = shift;
+	my ( $page ) = shift;
+	my ( $line, $date, @lines, @lastlines );
+	my ( $ar ) = tie @lines, 'Tie::File', $self->{_file};
+	# Get the number of lines in the file
+	my ( $totallines ) = scalar @lines;
+	$page = 1 unless $page;
+	my ( $firstline ) = ( $page - 1 ) * $numlines;
+	my ( $lastline ) = $firstline + $numlines;
+	my ( $counter ) = $firstline;
+	# Check that we don't get more lines than in file
+	if ( $lastline > $totallines )
+	{
+		$lastline = $totallines;
+	};
+	# Get the lines from the end of the file
+	while ( $counter < $lastline )
+	{
+		# Get the line
+		$line = $lines[ ( $totallines - 1 ) - $counter ];
+		# Split into variables
+		my ( $status, $section, $name, $timestamp, $statustext, $size, $destsize, $destfree ) = split( /,/,$line );
+		# Prepare the variables in one line
+		$line = $status . "," . $section . "," . $name . "," . $timestamp . "," . $statustext . "," . $size . "," . $destsize . "," . $destfree . "," . ( ( $totallines - 1 ) - $counter );
+		# Put them in our array
+		push( @lastlines,  $line );
+		# Count lines
+		$counter++;
+	};
+	undef $ar;
+	untie @lines;
+	return( @lastlines );
+};
+# GetNumLines -> Get the number of lines in the file
+# The timestamp field is converted form unixtime to human readable format
+sub GetNumLines # ( ) -> ( $numlines )
+{
+	my ( $self ) = shift;
+	my ( @lines );
+	my ( $ar ) = tie @lines, 'Tie::File', $self->{_file};
+	# Get the number of lines in the file
+	my ( $totallines ) = scalar @lines;
+	undef $ar;
+	untie @lines;
+	return( $totallines );
+};
+# AddLine -> Add line to end of file
+sub AddLine # ( ) -> ( )
+{
+	my ( $self ) = shift;
+	my ( $line, @lines );
+	my ( $ar ) = tie @lines, 'Tie::File', $self->{_file};
+	$ar->flock();
+	$line = $self->{_statusbits} . "," . $self->{_section} . "," . $self->{_name} . "," . $self->{_timestamp} . "," . $self->{_statustext} . "," . $self->{_size} . "," . $self->{_destsize} . "," . $self->{_destfree};
+	push( @lines, $line );
+	undef $ar;
+	untie @lines;
+	return();
+};
+# WriteLine -> Write line number $linenum in place
+sub WriteLine # ( $linenum  ) -> () 
+{
+	my ( $self ) = shift;
+	my ( $linenum ) = shift;
+	my ( @lines );
+	# Tie the file to an array
+	my ( $line );
+	my ( $ar ) = tie @lines, 'Tie::File', $self->{_file};
+	$ar->flock();
+	$line = $self->{_statusbits} . "," . $self->{_section} . "," . $self->{_name} . "," . $self->{_timestamp} . "," . $self->{_statustext} . "," . $self->{_size} . "," . $self->{_destsize} . "," . $self->{_destfree};
+	$lines[ $linenum ] = $line;
+	undef $ar;
+	untie @lines;
+	return();
+};
+# ReadLine -> Read line number $linenum
+sub ReadLine # ( $linenum  ) -> ( $line ) 
+{
+	my ( $self ) = shift;
+	my ( $linenum ) = shift;
+	my ( $line, @lines );
+	# Tie the file to an array
+	my ( $ar ) = tie @lines, 'Tie::File', $self->{_file};
+	$line = $lines[ $linenum ];
+	undef $ar;
+	untie @lines;
+	chomp( $line );
+	( $self->{_statusbits}, $self->{_section}, $self->{_name}, $self->{_timestamp}, $self->{_statustext}, $self->{_size}, $self->{_destsize}, $self->{_destfree} ) = split( /,/, $line );
+	return( $line );
+};
+# FindLines -> Get a list of lines with bit $bit set, added the line number as the first element in the array
+sub FindLines # ( $bit, $bitvalue ) -> ( @lines )
+{
+	my ( $self ) = shift;
+	my ( $bit ) = shift;
+	my ( $bitvalue ) = shift; # TRUE or FALSE
+	# Convert bit position to the byte with bit set
+	$bit = ( 2 ** $bit );
+	my ( $line, @lines, @pendinglines );
+	my ( $counter ) = 0;
+	my ( $ar ) = tie @lines, 'Tie::File', $self->{_file};
+	foreach $line ( @lines )
+	{
+		my ( $statusbits, $section, $name, $timestamp, $statustext, $size, $destsize, $destfree ) = split( /,/,$line );
+		if ( ( $statusbits & $bit ) == $bitvalue ) # check if bit 0 set
+		{
+			push( @pendinglines, ( $counter . "," . $line ) );
+		};
+		$counter++;
+	};
+	undef $ar;
+	untie @lines;
+	return( @pendinglines );
+};
+sub UpdateStatusBits # ( $bit, $bitvalue, \@lines ) -> ()
+{
+	my ( $self ) = shift;
+	my ( $bit ) = shift;
+	my ( $bitvalue ) = shift;
+	my ( $updatelines ) = shift;
+	my ( @lines );
+	my ( $ar ) = tie @lines, 'Tie::File', $self->{_file};
+	$ar->flock();
+	$bit = ( 2 ** $bit );
+	foreach my $line ( @{$updatelines} )
+	{
+		my ( $id );
+		( $id, $self->{_statusbits}, $self->{_section}, $self->{_name}, $self->{_timestamp}, $self->{_statustext}, $self->{_size}, $self->{_destsize}, $self->{_destfree} ) = split( /,/, $line );
+		if  ( $bitvalue eq 1 )
+		{
+			$self->{_statusbits} = ( $self->{_statusbits} | $bit );
+		}
+		else
+		{
+			$self->{_statusbits} = ( $self->{_statusbits} ^ $bit );
+		}
+		$line = $self->{_statusbits} . "," . $self->{_section} . "," . $self->{_name} . "," . $self->{_timestamp} . "," . $self->{_statustext} . "," . $self->{_size} . "," . $self->{_destsize} . "," . $self->{_destfree};
+		$lines[ $id ] = $line;	
+	};
+	undef $ar;
+	untie @lines;
+	return()
+};
+sub SetFile
+{
+	my ( $self ) = shift;
+	$self->{_file} = shift;
+	return();
+};
+sub SetMailrep
+{
+	my ( $self ) = shift;
+	$self->{_mailrep} = shift;
+	if ( $self->{_mailrep} eq 1 )
+	{
+		# Set bit 0 to 1
+		$self->{_statusbits} = $self->{_statusbits} | 1
+	}
+	else
+	{
+		# Set bit 0 to 0
+		$self->{_statusbits} = $self->{_statusbits} ^ 1
+	};
+	return();
+};
+sub SetCommrep
+{
+	my ( $self ) = shift;
+	$self->{_commrep} = shift;
+	if ( $self->{_commrep} eq 1 )
+	{
+		# Set bit 1 to 1
+		$self->{_statusbits} = $self->{_statusbits} | 2
+	}
+	else
+	{
+		# Set bit 1 to 0
+		$self->{_statusbits} = $self->{_statusbits} ^ 2
+	};
+	return();
+};
+sub SetIsHeader
+{
+	my ( $self ) = shift;
+	$self->{_isheader} = shift;
+	if ( $self->{_isheader} eq 1 )
+	{
+		# Set bit 2 to 1
+		$self->{_statusbits} = $self->{_statusbits} | 4
+	}
+	else
+	{
+		# Set bit 2 to 0
+		$self->{_statusbits} = $self->{_statusbits} ^ 4
+	};
+	return();
+};
+sub SetStatus
+{
+	my ( $self ) = shift;
+	$self->{_status} = shift;
+	# Shift the bits into position
+	my ( $var ) = $self->{_status} << 3;
+	# Set bits 3 & 4 to 0
+	$self->{_statusbits} = $self->{_statusbits} & 231;
+	# Set bits 3 & 4
+	$self->{_statusbits} = $self->{_statusbits} | $var;
+	return();
+};
+sub SetIsRemote
+{
+	my ( $self ) = shift;
+	$self->{_isremote} = shift;
+	if ( $self->{_isremote} eq 1 )
+	{
+		# Set bit 7 to 1
+		$self->{_statusbits} = $self->{_statusbits} | 128
+	}
+	else
+	{
+		# Set bit 7 to 0
+		$self->{_statusbits} = $self->{_statusbits} ^ 128
+	};
+	return();
+};
+sub SetName
+{
+	my ( $self ) = shift;
+	$self->{_name} = shift;
+	return();
+};
+sub SetSection
+{
+	my ( $self ) = shift;
+	$self->{_section} = shift;
+	return();
+};
+sub SetTimeStamp
+{
+	my ( $self ) = shift;
+	$self->{_timestamp} = shift;
+	return();
+};
+sub SetStatusText
+{
+	my ( $self ) = shift;
+	$self->{_statustext} = shift;
+	return();
+};
+sub SetSize
+{
+	my ( $self ) = shift;
+	$self->{_size} = shift;
+	return();
+};
+sub SetDestSize
+{
+	my ( $self ) = shift;
+	$self->{_destsize} = shift;
+	return();
+};
+sub SetDestFree
+{
+	my ( $self ) = shift;
+	$self->{_destfree} = shift;
+	return();
+};
+sub GetFile
+{
+	my ( $self ) = shift;
+	return( $self->{_file} );
+};
+sub GetMailrep
+{
+	my ( $self ) = shift;
+	return( $self->{_mailrep} );
+};
+sub GetCommrep
+{
+	my ( $self ) = shift;
+	return( $self->{_commrep} );
+};
+sub GetIsHeader
+{
+	my ( $self ) = shift;
+	return( $self->{_isheader} );
+};
+sub GetStatus
+{
+	my ( $self ) = shift;
+	return( $self->{_status} );
+};
+sub GetIsRemote
+{
+	my ( $self ) = shift;
+	return( $self->{_isremote} );
+};
+sub GetName
+{
+	my ( $self ) = shift;
+	return( $self->{_name} );
+};
+sub GetSection
+{
+	my ( $self ) = shift;
+	return( $self->{_section} );
+};
+sub GetTimeStamp
+{
+	my ( $self ) = shift;
+	return( $self->{_timestamp} );
+};
+sub GetHTimeStamp
+{
+	my ( $self ) = shift;
+	my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( $self->{_timestamp} );
+	my ($date ) = $mday . "/" . ( $mon + 1 ) . "/" . ( $year + 1900 ) . " " . sprintf( "%02d:%02d:%02d" , $hour, $min, $sec );
+	return( $date );
+};
+sub GetStatusText
+{
+	my ( $self ) = shift;
+	return( $self->{_statustext} );
+};
+sub GetSize
+{
+	my ( $self ) = shift;
+	return( $self->{_size} );
+};
+sub GetDestSize
+{
+	my ( $self ) = shift;
+	return( $self->{_destsize} );
+};
+sub GetDestFree
+{
+	my ( $self ) = shift;
+	return( $self->{_destfree} );
+};
+##################################################################################
+# End Class TableFile
+##################################################################################
+##################################################################################
+#
 # Class DoSection : Backup command block class
 #
 ##################################################################################
@@ -2914,12 +3612,13 @@ package DoSection;
 use File::Path;
 use File::Copy;
 use File::Temp qw/ tempfile tempdir /;
+our @ISA = qw( TableFile );	# inherits from TableFile
 sub new
 {
 	my ($class) = shift;
 	my $self =
 	{
-			_section 	=> undef,
+		_section 	=> undef,
 		_name 	 	=> undef,
 		_type		=> undef,
 		_sourcelist	=> undef,
@@ -3238,40 +3937,40 @@ sub WriteTable
 {
 	my ( $self ) = shift;
 	my ( $status, $date );
-	my ( $statusfile ) = $cmdln->GetStatusFileName;
+	my ( $table ) = TableFile->new();
+	my ( $statusfile ) =  $cmdln->GetStatusFileName();
+	$table->SetFile( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
 	$date = $self->GetLogDate();
 	if ( defined $self->GetName() )
 	{
 		$status = "OK";
+		$table->SetStatus( 0 );
 	}
 	else
 	{
-		$status = "ERROR";
+		$status = "INVALID";
 		$self->{_name} = " ";
 		$self->{_size} = "0";
+		$table->SetStatus( 3 ); # 11
 	};
 	if ( $self->{_warning} == 1 )
 	{
 		$status = "Warning";
+		$table->SetStatus( 1 ); # 01
 	};
 	if ( $self->{_error} == 1 )
 	{
 		$status = "ERROR";
+		$table->SetStatus( 2 ); # 10
 	};
-	open ( WORKFILE, ">>" . $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.wrk' );
-   	print WORKFILE  "0," . $self->GetSection() . "," . $self->GetName() . "," . $date . "," . $status . "," . $self->{_size} . "," . $self->{_destsize} . "," . $self->{_destfree} . "\n";
-	if ( -e $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' )
-		{
-		open ( TABLEFILE, "<" . $gsection->GetSpoolDir() . '/' . "$statusfile" . '.tbl' );
-		my ( $line );
-		foreach $line ( <TABLEFILE> )
-		{
-			print WORKFILE $line;
-		};
-		close ( TABLEFILE );
-	};
-	close ( WORKFILE );
-	move ( $gsection->GetSpoolDir() . '/' . "$statusfile" . '.wrk', $gsection->GetSpoolDir() . '/' . "$statusfile" . '.tbl' );
+	$table->SetSection( $self->GetSection() );
+	$table->SetName( $self->GetName() );
+	$table->SetTimeStamp( $date );
+	$table->SetStatusText( $status );
+	$table->SetSize( $self->{_size} );
+	$table->SetDestSize( $self->{_destsize} );
+	$table->SetDestFree( $self->{_destfree} );
+	$table->AddLine();
 	return (0);
 };
 ##################################################################################
@@ -5435,7 +6134,8 @@ sub AddMail
 sub SendReports
 {
 	my ( $self ) = shift;
-	my ( $mail, $mailstat );
+	my ( $mail );
+	my ( $mailstat ) = 1;
 	my ( $subject ) = "[" . $gsection->GetErrortag() . "] Backup report (" . $gsection->GetClient() . ")";
 	if ( $self->GetState() == 0 )
 	{
@@ -5449,7 +6149,7 @@ sub SendReports
 	{
 		$subject = "[" . $gsection->GetErrortag() . "] Backup report (" . $gsection->GetClient() . ")";
 	};
-# Get mailtext from config file, if it points to a file, read it and get the text into $mailtext
+	# Get mailtext from config file, if it points to a file, read it and get the text into $mailtext
 	my ( $cfg ) = Config::IniFiles->new( -file => $cmdln->GetConfigFileName );
 	my ( $mailtext ) = $cfg->val('global', 'mailtext');
 	if ( not defined $mailtext )
@@ -5477,97 +6177,97 @@ sub SendReports
 		my ( $address, $level, $mode ) = $mail->Get();
 		if ( ( $level > 1 ) or ( $self->GetState() > 1 ) or ( ( $level == 1 ) and ( $self->GetState() == 1 ) ) )
 		{
-		my ( $tableentry, $html, $plaintext );
-		my ( $tablestat ) = 0;
-		$plaintext = "----------------------------------------------------------------\n"
-		. "| " . sprintf("%-49s","Backup report ( Level : $level )") . "			|\n"
-		. "----------------------------------------------------------------\n";
-		$html = "<table style=\"width: 80%; text-align: left;\" border=\"2\" cellpadding=\"2\"\n"
-		. "cellspacing=\"2\">\n"
-		. "<tbody>"
-		. "<tr align=\"center\">\n"
-		. "<th colspan=\"4\" rowspan=\"1\" style=\"background-color: rgb(255, 255, 204); vertical-align: top;\">"
-		. "<font size=\"+2\">Backup report </font>"
-		. "<div align=\"right\"><font size=\"-2\" color=\"#888888\"> [ Level : $level - Version: $version - IP: " . $self->GetIP() . " ]</font></div>"
-		. "\n"
-		. "</th>\n"
-		. "</tr>\n"
-		. "<tr>\n"
-		. "<th style=\"vertical-align: top; text-align: center;\">Operation<br>\n"
-		. "</th>\n"
-		. "<th style=\"vertical-align: top; width: 130px; text-align: center;\">Date/Time<br>\n"
-		. "</th>\n"
-		. "<th style=\"vertical-align: top; width: 120px; text-align: center;\">Size (Use%)<br>\n"
-		. "</th>\n"
-		. "<th style=\"vertical-align: top; width: 100px; text-align: center;\">Status<br>\n"
-		. "</th>"
-		. "</tr>\n";
-		my ( $notempty ) = 0;
-		foreach $tableentry ( @{$self->{_table}} )
-		{
-			$notempty = 1;
-			my ( $section, $name, $timestamp, $status, $size, $destsize, $destfree ) = $tableentry->Get();
-			my ( $text ) = "[" . $section . "] " . $name;
-			my ( $date ) = substr( $timestamp, 0,2 ) . "/" . substr( $timestamp, 2,2 ) . "/" . substr( $timestamp, 4,4 ) . " " . substr( $timestamp, 8,2 ) . ":" . substr( $timestamp, 10,2 );
-			$plaintext .= "| " . sprintf("%-35s" ,$text . " Date : " . $date );
-			$html .= "<tr>\n" . "<td style=\"vertical-align: top;\">$text<br>\n" . "</td>\n";
-			$html .= "<td style=\"vertical-align: top;\">$date<br>\n" . "</td>\n";
-			$html .= "<td style=\"vertical-align: middle; margin: 0 0 0 0; border: 1; padding: 0; width: 104px; background: rgb(120,120,255)\">";
-			if ( $destsize ne 0 )
+			my ( $tableentry, $html, $plaintext );
+			my ( $tablestat ) = 0;
+			$plaintext = "----------------------------------------------------------------\n"
+			. "| " . sprintf("%-49s","Backup report ( Level : $level )") . "			|\n"
+			. "----------------------------------------------------------------\n";
+			$html = "<table style=\"width: 80%; text-align: left;\" border=\"2\" cellpadding=\"2\"\n"
+			. "cellspacing=\"2\">\n"
+			. "<tbody>"
+			. "<tr align=\"center\">\n"
+			. "<th colspan=\"4\" rowspan=\"1\" style=\"background-color: rgb(255, 255, 204); vertical-align: top;\">"
+			. "<font size=\"+2\">Backup report </font>"
+			. "<div align=\"right\"><font size=\"-2\" color=\"#888888\"> [ Level : $level - Version: $version - IP: " . $self->GetIP() . " ]</font></div>"
+			. "\n"
+			. "</th>\n"
+			. "</tr>\n"
+			. "<tr>\n"
+			. "<th style=\"vertical-align: top; text-align: center;\">Operation<br>\n"
+			. "</th>\n"
+			. "<th style=\"vertical-align: top; width: 130px; text-align: center;\">Date/Time<br>\n"
+			. "</th>\n"
+			. "<th style=\"vertical-align: top; width: 120px; text-align: center;\">Size (Use%)<br>\n"
+			. "</th>\n"
+			. "<th style=\"vertical-align: top; width: 100px; text-align: center;\">Status<br>\n"
+			. "</th>"
+			. "</tr>\n";
+			my ( $notempty ) = 0;
+			foreach $tableentry ( @{$self->{_table}} )
 			{
-				$html .= "<div>\n";
+				$notempty = 1;
+				my ( $section, $name, $timestamp, $status, $size, $destsize, $destfree ) = $tableentry->Get();
+				my ( $text ) = "[" . $section . "] " . $name;
+				my ( $date ) = substr( $timestamp, 0,2 ) . "/" . substr( $timestamp, 2,2 ) . "/" . substr( $timestamp, 4,4 ) . " " . substr( $timestamp, 8,2 ) . ":" . substr( $timestamp, 10,2 );
+				$plaintext .= "| " . sprintf("%-35s" ,$text . " Date : " . $date );
+				$html .= "<tr>\n" . "<td style=\"vertical-align: top;\">$text<br>\n" . "</td>\n";
+				$html .= "<td style=\"vertical-align: top;\">$date<br>\n" . "</td>\n";
+				$html .= "<td style=\"vertical-align: middle; margin: 0 0 0 0; border: 1; padding: 0; width: 104px; background: rgb(120,120,255)\">";
+				if ( $destsize ne 0 )
+				{
+					$html .= "<div>\n";
+				};
+				$html .= $self->HumanBytes( $size );
+				if ( $destsize ne 0 )
+				{
+					$html .= "&nbsp;(" . int( 100 - ($destfree / $destsize)*100) . "%)\n";
+					$html .= "<div nowrap style=\"background: rgb(255,0,0); color: rgb(255,255,0); overflow: hidden; border: 1; margin: 0px 0px 0px 0px; height: 2px; padding: 0; width: " . int( 100 - ($destfree / $destsize)*100)  . "% \">";
+					$html .= "</div>\n</div>\n";
+				}
+				$html .= "</td>\n";
+				if ( $status eq "OK" )
+				{
+					$html .= "<td style=\"background-color: rgb(51, 255, 51); vertical-align: top; width: 100px; text-align: center;\">OK<br>\n";
+					$plaintext .= "| " . sprintf("%11s"," - OK - ") . " |\n"
+					. "----------------------------------------------------------------\n";
+				}
+				elsif ( $status eq "Warning" )
+				{
+					$html .= "<td style=\"background-color: rgb(255, 153, 0); vertical-align: top; width: 100px; text-align: center;\">Warning<br>\n";
+					$plaintext .= "| " . sprintf("%11s","  Warning  ") . " |\n"
+					. "----------------------------------------------------------------\n";
+				}
+				else
+				{
+					$html .= "<td style=\"background-color: rgb(255, 0, 0); vertical-align: top; width: 100px; text-align: center;\">ERROR<br>\n";
+					$plaintext .= "| " . sprintf("%11s"," * ERROR * ") . " |\n"
+					. "----------------------------------------------------------------\n"
+					. "[ Level : $level - Version: $version - IP: " . $self->GetIP() . " ]";
+				};
+				$html .= "</td>\n"
+				."</tr>\n";
 			};
-			$html .= $self->HumanBytes( $size );
-			if ( $destsize ne 0 )
+			$plaintext .= "\n";
+			$plaintext .= $mailtext;
+			$html .= "</tbody>\n" . "</table>\n" . "<br>\n";
+			$html .= "<br>\n";
+			$html .= "$mailtext<br>\n";
+			if ( $mode  eq "html" )
 			{
-				$html .= "&nbsp;(" . int( 100 - ($destfree / $destsize)*100) . "%)\n";
-				$html .= "<div nowrap style=\"background: rgb(255,0,0); color: rgb(255,255,0); overflow: hidden; border: 1; margin: 0px 0px 0px 0px; height: 2px; padding: 0; width: " . int( 100 - ($destfree / $destsize)*100)  . "% \">";
-				$html .= "</div>\n</div>\n";
+				$plaintext = "Only html reports for this e-mail";
 			}
-			$html .= "</td>\n";
-			if ( $status eq "OK" )
+			elsif ( $mode eq "plain" )
 			{
-				$html .= "<td style=\"background-color: rgb(51, 255, 51); vertical-align: top; width: 100px; text-align: center;\">OK<br>\n";
-				$plaintext .= "| " . sprintf("%11s"," - OK - ") . " |\n"
-				. "----------------------------------------------------------------\n";
-			}
-			elsif ( $status eq "Warning" )
+				$html = "Only plaintext reports for this e-mail";
+			};
+			if ( $notempty == 1 )
 			{
-				$html .= "<td style=\"background-color: rgb(255, 153, 0); vertical-align: top; width: 100px; text-align: center;\">Warning<br>\n";
-				$plaintext .= "| " . sprintf("%11s","  Warning  ") . " |\n"
-				. "----------------------------------------------------------------\n";
+				$mailstat = $self->MailReport( $address, $subject , $html, $plaintext, $self->GetState(), $level );
 			}
 			else
 			{
-				$html .= "<td style=\"background-color: rgb(255, 0, 0); vertical-align: top; width: 100px; text-align: center;\">ERROR<br>\n";
-				$plaintext .= "| " . sprintf("%11s"," * ERROR * ") . " |\n"
-				. "----------------------------------------------------------------\n"
-				. "[ Level : $level - Version: $version - IP: " . $self->GetIP() . " ]";
+				$mailstat = 1;
 			};
-			$html .= "</td>\n"
-			."</tr>\n";
-		};
-		$plaintext .= "\n";
-		$plaintext .= $mailtext;
-		$html .= "</tbody>\n" . "</table>\n" . "<br>\n";
-		$html .= "<br>\n";
-		$html .= "$mailtext<br>\n";
-		if ( $mode  eq "html" )
-		{
-			$plaintext = "Only html reports for this e-mail";
-		}
-		elsif ( $mode eq "plain" )
-		{
-			$html = "Only plaintext reports for this e-mail";
-		};
-		if ( $notempty == 1 )
-		{
-			$mailstat = $self->MailReport( $address, $subject , $html, $plaintext, $self->GetState(), $level );
-		}
-	else
-	{
-		$mailstat = 1;
-	};
 		};
 	};
 	return ( $mailstat );
@@ -8043,5 +8743,3 @@ sub DESTROY  {
 if ($^W)	{
 	$Config::IniFiles::VERSION = $Config::IniFiles::VERSION;
 };
-
-
