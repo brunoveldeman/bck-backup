@@ -1681,22 +1681,22 @@ sub HtmlMain # () -> ()
 	if ( $page > 1 )
 	{
 		$self->AddHtml ( "<form class=\"left\" action=\"\" method=\"POST\">\n" );
-		$self->AddHtml ( '<input type="Submit" value="First page" name="group1">' . "\r\n" );
+		$self->AddHtml ( '<input class="button" type="Submit" value="First page" name="group1">' . "\r\n" );
 		$self->AddHtml ( '<input type="hidden" name="page" value="' . 1 . '" size="20">' . "\r\n" );
 		$self->AddHtml ( "</form>" );
 		$self->AddHtml ( "<form class=\"left\" action=\"\" method=\"POST\">\n" );
-		$self->AddHtml ( '<input type="Submit" value="Previous page" name="group1">' . "\r\n" );
+		$self->AddHtml ( '<input class="button" type="Submit" value="Previous page" name="group1">' . "\r\n" );
 		$self->AddHtml ( '<input type="hidden" name="page" value="' . ( $page - 1 ) . '" size="20">' . "\r\n" );
 		$self->AddHtml ( "</form>" );
 	};
 	if ( $page < $lastpage )
 	{
 		$self->AddHtml ( "<form class=\"right\" action=\"\" method=\"POST\">\n" );
-		$self->AddHtml ( '<input type="Submit" value="Last page" name="group2">' . "\r\n" );
+		$self->AddHtml ( '<input class="button" type="Submit" value="Last page" name="group2">' . "\r\n" );
 		$self->AddHtml ( '<input type="hidden" name="page" value="' . $lastpage . '" size="20">' . "\r\n" );
 		$self->AddHtml ( "</form>" );
 		$self->AddHtml ( "<form class=\"right\" action=\"\" method=\"POST\">\n" );
-		$self->AddHtml ( '<input type="Submit" value="Next page" name="group2">' . "\r\n" );
+		$self->AddHtml ( '<input class="button" type="Submit" value="Next page" name="group2">' . "\r\n" );
 		$self->AddHtml ( '<input type="hidden" name="page" value="' . ( $page + 1 ) . '" size="20">' . "\r\n" );
 		$self->AddHtml ( "</form>" );
 	};
@@ -1704,7 +1704,7 @@ sub HtmlMain # () -> ()
 	$self->AddHtml( "<table class=\"lines\">\n" );
 	$self->AddHtml( "<thead>\n"
 	. "<tr>\n"
-	. "<th colspan=\"5\" class=\"pages\">"
+	. "<th class=\"pages\" colspan=\"5\">"
 	. "Backup reports - Page " . $page . " of " . $lastpage . "\n"
 	. "</th>\n"
 	. "</tr>\n"
@@ -1858,11 +1858,20 @@ sub HtmlLogs # () -> ()
 	$self->HtmlBodyTop();
 	if ( ( $self->{_method} eq "POST" ) and ( defined $self->{_postdata}->{"file"} ) )
 	{
-		if ( -e $gsection->GetLogDir() . "/" . $self->{_postdata}->{"file"} . "." . lc( $self->{_postdata}->{"group"} ) )
+		my ( $ext );
+		if ( $self->{_postdata}->{"group"} =~ /log/ )
 		{
-			open ( FILEDATA, "<" . $gsection->GetLogDir() . "/" . $self->{_postdata}->{"file"} . "." . lc( $self->{_postdata}->{"group"} ) );
+			$ext = "log";
+		}
+		else
+		{
+			$ext = "lst";
+		};
+		if ( -e $gsection->GetLogDir() . "/" . $self->{_postdata}->{"file"} . "." . lc( $ext ) )
+		{
+			open ( FILEDATA, "<" . $gsection->GetLogDir() . "/" . $self->{_postdata}->{"file"} . "." . lc( $ext ) );
 			my ( $line, $size );
-			$self->AddHtml( "<br><b>File: </b><i>" . $gsection->GetLogDir() . "/" . $self->{_postdata}->{"file"} . "." . lc( $self->{_postdata}->{"group"} ) . "</i><br>\r\n" );
+			$self->AddHtml( "<br><b>File: </b><i>" . $gsection->GetLogDir() . "/" . $self->{_postdata}->{"file"} . "." . lc( $ext ) . "</i><br>\r\n" );
 			foreach $line (<FILEDATA>)
 			{
 				chomp( $line );
@@ -1881,22 +1890,22 @@ sub HtmlLogs # () -> ()
 		if ( $page > 1 )
 		{
 			$self->AddHtml ( "<form class=\"left\" action=\"\" method=\"POST\">\n" );
-			$self->AddHtml ( '<input type="Submit" value="First page" name="group1">' . "\r\n" );
+			$self->AddHtml ( '<input class="button" type="Submit" value="First page" name="group">' . "\r\n" );
 			$self->AddHtml ( '<input type="hidden" name="page" value="' . 1 . '" size="20">' . "\r\n" );
 			$self->AddHtml ( "</form>" );
 			$self->AddHtml ( "<form class=\"left\" action=\"\" method=\"POST\">\n" );
-			$self->AddHtml ( '<input type="Submit" value="Previous page" name="group1">' . "\r\n" );
+			$self->AddHtml ( '<input class="button" type="Submit" value="Previous page" name="group">' . "\r\n" );
 			$self->AddHtml ( '<input type="hidden" name="page" value="' . ( $page - 1 ) . '" size="20">' . "\r\n" );
 			$self->AddHtml ( "</form>" );
 		};
 		if ( $page < $lastpage )
 		{
 			$self->AddHtml ( "<form class=\"right\" action=\"\" method=\"POST\">\n" );
-			$self->AddHtml ( '<input type="Submit" value="Last page" name="group2">' . "\r\n" );
+			$self->AddHtml ( '<input class="button" type="Submit" value="Last page" name="group">' . "\r\n" );
 			$self->AddHtml ( '<input type="hidden" name="page" value="' . $lastpage . '" size="20">' . "\r\n" );
 			$self->AddHtml ( "</form>" );
 			$self->AddHtml ( "<form class=\"right\" action=\"\" method=\"POST\">\n" );
-			$self->AddHtml ( '<input type="Submit" value="Next page" name="group2">' . "\r\n" );
+			$self->AddHtml ( '<input class="button" type="Submit" value="Next page" name="group">' . "\r\n" );
 			$self->AddHtml ( '<input type="hidden" name="page" value="' . ( $page + 1 ) . '" size="20">' . "\r\n" );
 			$self->AddHtml ( "</form>" );
 		};
@@ -1939,9 +1948,9 @@ sub HtmlLogs # () -> ()
 					$self->AddHtml( "<form class=\"right\" action=\"logs\" method=\"POST\" >\n" );
 					if ( -e $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".lst" )
 					{
-						$self->AddHtml( '<input type="Submit" value="File list" name="group" height=\"13\">' . "\r\n" );
+						$self->AddHtml( '<input class="button" type="Submit" value="Show file list" name="group">' . "\r\n" );
 					};
-					$self->AddHtml( '<input type="Submit" value="Log file" name="group" height=\"13\">' . "\r\n" );
+					$self->AddHtml( '<input class="button" type="Submit" value="Show log file" name="group">' . "\r\n" );
 					$self->AddHtml( '<input type="hidden" name="file" value="' .  "$section.$timestamp" . '" size="20">' . "\r\n" );
 					$self->AddHtml( "</form>" );
 				}
@@ -2383,6 +2392,16 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( 'border-color: #000000;' );
 	$self->AddHtml( 'border-style: solid;' );
 	$self->AddHtml( 'display:  block;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'input.button {' );
+	$self->AddHtml( 'border-width: 2px;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-style: outset;' );
+	$self->AddHtml( 'background: #C0C0C0;' );
+	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'padding: 0px;' );
+	$self->AddHtml( 'margin: 0px;' );
+	$self->AddHtml( 'height: 22;' );
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( 'th.lines {' );
 	$self->AddHtml( 'border-width: 2px;' );
