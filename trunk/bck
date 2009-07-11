@@ -89,7 +89,7 @@ exit($state);
 # Sub Main
 #
 ##################################################################################
-sub Main
+sub Main # () -> ()
 {
 	my ( $cfg ) = undef;
 	my ( $lang ) = undef;
@@ -168,6 +168,8 @@ sub Main
 #
 # Sub MailReports :
 #
+# Input validation : OK (BV 11/9/2009)
+#
 ##################################################################################
 sub MailReports
 {
@@ -207,6 +209,8 @@ sub MailReports
 		foreach $line ( @lines )
 		{
 			chomp( $line );
+			# Clean up the line
+			$line = StrCl( $line );
 			my ( $id, $statusbits, $section, $name, $timestamp, $stat, $size, $destsize, $destfree ) = split( /,/,$line );
 			# Check values in table file
 			if ( !defined $section ) { $section = 0 };
@@ -244,6 +248,8 @@ sub MailReports
 #
 # Sub CommReports :
 #
+# Input validation : OK (BV 11/9/2009)
+#
 ##################################################################################
 sub CommReports # () -> ()
 {
@@ -274,7 +280,20 @@ sub CommReports # () -> ()
 		foreach my $line ( @lines )
 		{
 			chomp( $line );
+			# Clean up the line
+			$line = StrCl( $line );
 			my ( $id, $mailed, $section, $name, $timestamp, $stat, $size, $destsize, $destfree ) = split( /,/,$line );
+			# check values in table file
+			if ( !defined $section ) { $section = 0 };
+			if ( !defined $name ) { $name = 0 };
+			if ( !defined $timestamp ) { $timestamp = 0 };
+			if ( !defined $stat ) { $stat = 0 };
+			if ( !defined $size ) { $size = 0 };
+			if ( !defined $destsize ) { $destsize = 0 };
+			if ( !defined $destfree ) { $destfree = 0 };
+			$size = NumCl( $size );
+			$destsize = NumCl( $destsize );
+			$destfree = NumCl( $destfree );
 			if ( $stat eq "Warning" )
 			{
 				if ( $reportstatus < 1 )
@@ -312,7 +331,7 @@ sub CommReports # () -> ()
 				};
 				# Get the seed to create the password
 				# Skip the first 3 chars as this is bck
-				my ( $seed ) = substr ( $response, 3 );
+				my ( $seed ) = StrCl( substr( $response, 3 ) );
 				my  ( $auth ) = crypt( $password, $seed );
 				select ( S );
 				print S "bck$auth\n";
@@ -335,6 +354,7 @@ sub CommReports # () -> ()
 				close S;
 				select ( STDOUT );
 				chomp( $response );
+				$response = StrCl( $response );
 			};
 		};
 		if ( ( $response ne "bck00" ) and ( $response ne "" ) )
@@ -349,6 +369,8 @@ sub CommReports # () -> ()
 #
 # Sub GetIP :
 #
+# Input validation : OK (BV 11/9/2009)
+#
 ##################################################################################
 sub GetIP # (webaddress) -> (myip)
 {
@@ -356,8 +378,10 @@ sub GetIP # (webaddress) -> (myip)
 	my ( $webaddress ) = @_;
 	my ( $response, $myip );
 	my ( $peer, $address );
-	# Return emtry IP^string if no webaddress is passed
+	# Return empty IP string if no webaddress is passed
 	return ("---.---.---.---") unless $webaddress;
+	# Clean up the $webaddress string
+	$webaddress =~ s/[^\w\.-\/]//g;
 	my ( $host , $page ) = split( /\//, $webaddress, 2 );
 	$page = "" unless $page;
 	$address = inet_aton( $host );
@@ -401,6 +425,8 @@ sub GetIP # (webaddress) -> (myip)
 ##################################################################################
 #
 # Sub HumanBytes :
+# 
+# Input validation : OK (BV 11/9/2009)
 #
 ##################################################################################
 sub HumanBytes
@@ -418,42 +444,42 @@ sub HumanBytes
 	#yottabyte Y = 2**80 B = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 B
 	if ( defined $bytes and ( $bytes != 0 ) )
 	{
-	if ( $bytes > ( 2 ** 80 ) )
-	{
-		$output = sprintf("%.2f YB",( $bytes / ( 2 ** 80 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 70) )
-	{
-		$output = sprintf("%.2f ZB",( $bytes / ( 2 ** 70 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 60) )
-	{
-		$output = sprintf("%.2f EB",( $bytes / ( 2 ** 60 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 50) )
-	{
-		$output = sprintf("%.2f PB",( $bytes / ( 2 ** 50 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 40) )
-	{
-		$output = sprintf("%.2f TB",( $bytes / ( 2 ** 40 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 30) )
-	{
-		$output = sprintf("%.2f GB",( $bytes / ( 2 ** 30 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 20) )
-	{
-		$output = sprintf("%.2f MB",( $bytes / ( 2 ** 20 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 10) )
-	{
-		$output = sprintf("%.2f KB",( $bytes / ( 2 ** 10 ) ) );
-	}
-	else
-	{
-		$output = sprintf("%.0f B",( $bytes ) );
-	};
+		if ( $bytes > ( 2 ** 80 ) )
+		{
+			$output = sprintf("%.2f YB",( $bytes / ( 2 ** 80 ) ) );
+		}
+		elsif ( $bytes > ( 2 ** 70) )
+		{
+			$output = sprintf("%.2f ZB",( $bytes / ( 2 ** 70 ) ) );
+		}
+		elsif ( $bytes > ( 2 ** 60) )
+		{
+			$output = sprintf("%.2f EB",( $bytes / ( 2 ** 60 ) ) );
+		}
+		elsif ( $bytes > ( 2 ** 50) )
+		{
+			$output = sprintf("%.2f PB",( $bytes / ( 2 ** 50 ) ) );
+		}
+		elsif ( $bytes > ( 2 ** 40) )
+		{
+			$output = sprintf("%.2f TB",( $bytes / ( 2 ** 40 ) ) );
+		}
+		elsif ( $bytes > ( 2 ** 30) )
+		{
+			$output = sprintf("%.2f GB",( $bytes / ( 2 ** 30 ) ) );
+		}
+		elsif ( $bytes > ( 2 ** 20) )
+		{
+			$output = sprintf("%.2f MB",( $bytes / ( 2 ** 20 ) ) );
+		}
+		elsif ( $bytes > ( 2 ** 10) )
+		{
+			$output = sprintf("%.2f KB",( $bytes / ( 2 ** 10 ) ) );
+		}
+		else
+		{
+			$output = sprintf("%.0f B",( $bytes ) );
+		};
 	}
 	else
 	{
@@ -474,8 +500,8 @@ sub StrCl # ( string ) -> ( clean string )
 	# If undefined, make it one space.
 	$string = " " unless $string;
 	# Remove al chars exept a-z 0-9 A-Z , . _ - : ; and space
-	$string =~ s/[^\w\,\._-:;\s]//g;
-	return ( $tring );
+	$string =~ s/[^\w\,\.-:;\s]//g;
+	return ( $string );
 };
 ##################################################################################
 #
@@ -490,6 +516,8 @@ sub NumCl # ( num ) -> ( clean num )
 	$num = 0 unless $num;
 	# Remove al chars exept 0-9
 	$num =~ s/[^\d]//g;
+	# If we end up with an empty value, make it 0
+	$num = 0 unless ( $num ne "" );
 	return ( $num );
 };
 ##################################################################################
@@ -505,8 +533,9 @@ sub NumNz # ( num ) -> ( clean num )
 	$num = 1 unless $num;
 	# Remove al chars exept 0-9
 	$num =~ s/[^\d]//g;
-	
-	$num = 1 unless ( $num ne 0 );
+	# If we end up with an empty value, make it 0
+	$num = 0 unless ( $num ne "" );
+	$num = 1 unless ( $num ne 0  );
 	return ( $num );
 };
 ##################################################################################
@@ -523,7 +552,9 @@ sub GetTime # () -> (mytime)
 };
 ##################################################################################
 #
-# Sub GetNtpTime :
+# Sub GetNtpTime : Get time from time server
+#
+# Input validation : OK (BV 11/9/2009)
 #
 ##################################################################################
 sub GetNtpTime # (ntpservername) -> (mytime)
@@ -533,8 +564,11 @@ sub GetNtpTime # (ntpservername) -> (mytime)
 	my ( $mytime, $buflen, $sndmsg, $ttime ,$ipaddr, $portaddr, @response );
 	# If no server name or address is passed, return emty time string
 	return ( "-/-/---- --:--:-- (-)" ) unless $ntpserver;
+	$ntpserver = StrCl( $ntpserver );
 	# If no port is given, we use the standard port.
 	$ntpport = 123 unless $ntpport;
+	# Clean up the number
+	$ntpport = NumCl( $ntpport );
 	$buflen = 1024;
 	my ( $retry ) = 3;
 	my ( $timeout ) = 3;
@@ -952,7 +986,7 @@ sub CheckConfig # ($configfilename) -> ()
 						receiveFromServer(\*SOCK);
 					}
 					#
-					# SMTP AUTH LOGIN type.
+					# Start authentication test.
 					#
 					$failed = 1 if sendToServer(\*SOCK, "AUTH LOGIN");
 					$failed = 1 if receiveFromServer(\*SOCK) != 0;
@@ -960,17 +994,6 @@ sub CheckConfig # ($configfilename) -> ()
 					$failed = 1 if receiveFromServer(\*SOCK) != 0;
 					$failed = 1 if sendToServer(\*SOCK, encode_base64($smtppass, "")) != 0;
 					$failed = 1 if receiveFromServer(\*SOCK) != 0;
-					#
-					# Start authentication test.
-					#
-					#$failed = 1 if sendToServer(\*SOCK, "MAIL FROM: $mailaddr") != 0;
-					#$failed = 1 if receiveFromServer(\*SOCK) != 0;
-					#$failed = 1 if sendToServer(\*SOCK, "RCPT TO: $mailaddr") != 0;
-					#$failed = 1  if receiveFromServer(\*SOCK) != 0;
-					#$failed = 1  if sendToServer(\*SOCK, "DATA") != 0;
-					#$failed = 1  if receiveFromServer(\*SOCK) != 0;
-					#$failed = 1  if sendToServer(\*SOCK, "TEST\r\n.") != 0;
-					#$failed = 1  if receiveFromServer(\*SOCK) != 0;
 					$failed = 1 if sendToServer(\*SOCK, "QUIT") != 0;
 					$failed = 1 if receiveFromServer(\*SOCK) != 0;
 					eof(SOCK) || close(SOCK);
@@ -1003,6 +1026,8 @@ sub CheckConfig # ($configfilename) -> ()
 			if ( defined $ntpserver)
 			{
 				print "	 ntpserver ok.\n";
+				print "	 -testing connection\n";
+				print "	 --" . GetNtpTime( $ntpserver ) . " returned by server\n"
 			}
 			else
 			{
@@ -1103,13 +1128,17 @@ sub CheckConfig # ($configfilename) -> ()
 	};
 	return (0);
 };
+##################################################################################
 #
 # Mail send test routines
 #
+##################################################################################
+##################################################################################
 #
 # receiveFromServer : Receive data from server on socket connection.
 #
-sub receiveFromServer
+##################################################################################
+sub receiveFromServer # ( $socket ) -> ( $reply )
 {
 	my($socket) = shift;
 	my($reply);
@@ -1122,13 +1151,14 @@ sub receiveFromServer
 		return (1) if $reply =~ /^5/;
 		last if $reply =~ /^\d+ /;
 	};
-	print "	 --Rx $reply";
-	return 0;
+	return( 0 );
 };
+##################################################################################
 #
 # sendToserver : Send data to server on socket conection.
 #
-sub sendToServer
+##################################################################################
+sub sendToServer # ( $socket, $message ) -> ()
 {
 	my($socket) = shift;
 	my($message) = shift;
@@ -1140,12 +1170,16 @@ sub sendToServer
 	# Sending data to the server.
 	#
 	send($socket, "$message\r\n", 0);
-	return 0;
+	return( 0 );
 };
+##################################################################################
 #
 # getEmailAddress : Get email from "Name" <my.email@my.host> line.
 #
-sub getEmailAddress
+# Input validation : OK (BV 11/9/2009)
+#
+##################################################################################
+sub getEmailAddress # ( $test ) -> ( $email )
 {
 	my($value) = shift;
 	my($retvalue) = undef;
@@ -1162,17 +1196,16 @@ sub getEmailAddress
 	return "" if $value =~ /\s+/;
 	$value =~ tr/[A-Z]/[a-z]/;
 	return $value if $value =~ /^[^\@]+\@[\w\-]+(\.[\w\-]+)+$/;
-	return "";
+	return( "" );
 }
+##################################################################################
 #
 # End of mail test send routines
 #
 ##################################################################################
 ##################################################################################
 #
-##################################################################################
-#
-# Sub PrintHelp :
+# Sub PrintHelp : print help when --help option is used
 #
 ##################################################################################
 sub PrintHelp # () -> ()
@@ -1195,19 +1228,20 @@ sub PrintHelp # () -> ()
 };
 ##################################################################################
 #
-# Sub PrintVersion :
+# Sub PrintVersion : print version when --version option is used
 #
 ##################################################################################
 sub PrintVersion # () -> ()
 {
 	print "bck version : $version\n";
 };
-##################################################################################
+# NOT USED #################################################################################
 #
-# Sub CreateConfig : Crear y guardar archivo de configuracion
+# Sub CreateConfig : Create configuration file
 #
-##################################################################################
-sub CreateConfig{ # (configfile) -> ()
+# NOT USED #################################################################################
+sub CreateConfig # (configfile) -> ()
+{
 	my($configfile) = @_;
 	print "Creating config file subroutine\n";
 	return(0);
@@ -1216,10 +1250,13 @@ sub CreateConfig{ # (configfile) -> ()
 #
 # Sub Update : Update to new version from ftp server
 #
+# Input validation : OK (BV 11/9/2009)
+#
 ##################################################################################
-sub Update{ # (configfile) -> ()
-	my($configfile) = @_;
-	my($cfg, $name, $path, $result, $url, $user, $pass, $cmd);
+sub Update # (configfile) -> ()
+{
+	my( $configfile ) = @_;
+	my( $cfg, $name, $path, $result, $url, $user, $pass, $cmd );
 	use File::Copy;
 	use FindBin qw( $Bin $Script );
 	$path = $Bin;
@@ -1245,8 +1282,6 @@ sub Update{ # (configfile) -> ()
 	};
 	if ( defined $url )
 	{
-		#print "Path = $path / Name = $name / Version = $version\n";
-		#print "URL = $url / User = $user / Password = $pass\n";
 		$result = `$cmd`;
 		if ( -e  "$path/$name.new" )
 		{
@@ -1298,15 +1333,20 @@ sub Update{ # (configfile) -> ()
 	};
 	return(0);
 };
+##################################################################################
 #
 # ConvertVersionString : Convert version string to int.
 #
-sub ConvertVersionString
+# Input validation : OK (BV 11/9/2009)
+#
+##################################################################################
+sub ConvertVersionString # ( $versionstring ) -> ( $versionnum )
 {
 	my ( $version ) = @_;
 	my ( $vernum, $vercount );
 	# Clean up the string
 	chomp ( $version);
+	$version = StrCl( $version );
 	$version =~ s/^\s+//;
 	$version =~ s/\s+$//;
 	# Split up in array
@@ -1382,7 +1422,13 @@ sub SetConfigfile
 	my ( $configfile ) = @_;
 	$self->{_configfile} = $configfile;
 };
-#Parse request data from browser
+#######################################################################################
+#
+# Parse request data from browser
+#
+# Input validation : OK (BV 11/9/2009)
+#
+#######################################################################################
 sub ParseRequest
 {
 	my ( $self ) = shift;
@@ -1398,16 +1444,23 @@ sub ParseRequest
 	my $method   = $1 || '';
 	my $uri	  = lc($2) || '';
 	my $protocol = $3 || '';
-	$self->{_method} =  $method;
-	$self->{_uri} =  $uri;
-	$self->{_protocol} =  $protocol;
+	$self->{_method} =  ::StrCl( $method );
+	$self->{_uri} =  ::StrCl( $uri );
+	$self->{_protocol} =  ::NumNz( $protocol );
 	return();
 };
-#Handle http requests
+#######################################################################################
+#
+# Handle http requests
+#
+# Input validation : OK (BV 11/9/2009)
+#
+#######################################################################################
 sub Start # () -> ()
 {
 	my ( $self ) = shift;
 	my ( $type ) = shift;
+	$type = ::NumCl( $type );
 	$self->ParseRequest();
 	# If $type bit 0 = 1, respond to HTTP GET requests
 	if ( ( $self->{_method} eq "GET" ) and ( $type & 1 ) )
@@ -1502,30 +1555,6 @@ sub Start # () -> ()
 			$self->SendHeaders();
 			$self->SendBody();
 		}
-		elsif ( $self->{_uri} eq "/dobackup" )
-		{
-			if ( $self->HtmlDoBackup() == 1 )
-			{
-				#Send HTML chunks
-			}
-			else
-			{
-				$self->SendHeaders();
-				$self->SendBody();
-			};
-		}
-		elsif ( $self->{_uri} eq "/dorestore" )
-		{
-			if ( $self->HtmlDoRestore() == 1 )
-			{
-				#Send HTML chunks
-			}
-			else
-			{
-				$self->SendHeaders();
-				$self->SendBody();
-			};
-		}
 		else
 		{
 			$self->HtmlNotfound();
@@ -1571,6 +1600,14 @@ sub Start # () -> ()
 			foreach my $line ( @report )
 			{
 				my ( $statusbits, $section, $name, $timestamp, $stat, $size, $destsize, $destfree ) = split( /,/,$line );
+				if ( !defined $statusbits ) { $statusbits = 24 };
+				if ( !defined $section ) { $section = " " };
+				if ( !defined $name ) { $name = " " };
+				if ( !defined $timestamp ) { $timestamp = 0 };
+				if ( !defined $stat ) { $stat = "" };
+				$size = ::NumCl( $size );
+				$destsize = ::NumCl( $destsize );
+				$destfree = ::NumCl( $destfree );
 				$table->{_statusbits} = $statusbits | 128;
 				$table->SetSection( $section );
 				$table->SetName( $name );
@@ -1593,6 +1630,11 @@ sub Start # () -> ()
 	};
 	return();
 };
+#######################################################################################
+#
+# SendHeaders
+#
+#######################################################################################
 sub SendHeaders
 {
 	my ( $self ) = shift;
@@ -1605,6 +1647,11 @@ sub SendHeaders
 	print "Content-Type: text/html;charset=utf-8\r\n\r\n";
 	return();
 };
+#######################################################################################
+#
+# SendChunkedHeaders
+#
+#######################################################################################
 sub SendChunkedHeaders
 {
 	my ( $self ) = shift;
@@ -1617,6 +1664,11 @@ sub SendChunkedHeaders
 	print "Content-Type: text/html;charset=utf-8\r\n\r\n";
 	return();
 };
+#######################################################################################
+#
+# SendAuthHeaders
+#
+#######################################################################################
 sub SendAuthHeaders
 {
 	my ( $self ) = shift;
@@ -1638,6 +1690,11 @@ sub SendAuthHeaders
 	print "Content-Type: text/html;charset=utf-8\r\n\r\n";
 	return();
 };
+#######################################################################################
+#
+# SendNotFoundHeaders
+#
+#######################################################################################
 sub SendNotFoundHeaders
 {
 	my ( $self ) = shift;
@@ -1650,11 +1707,22 @@ sub SendNotFoundHeaders
 	print "Content-Type: text/html;charset=utf-8\r\n\r\n";
 	return();
 };
+#######################################################################################
+#
+# SendBody
+#
+#######################################################################################
+
 sub SendBody
 {
 	my ( $self ) = shift;
 	print $self->{_html};
 };
+#######################################################################################
+#
+# SendBodyChunk
+#
+#######################################################################################
 sub SendBodyChunk
 {
 	my ( $self ) = shift;
@@ -1662,6 +1730,13 @@ sub SendBodyChunk
 	print $self->{_html} . "\r\n";
 	$self->{_html} = "";
 };
+#######################################################################################
+#
+# ParseHeaders
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub ParseHeaders
 {
 	my ( $self ) = shift;
@@ -1687,12 +1762,18 @@ sub ParseHeaders
 	while ( $counter < $#{$self->{_headers}})
 	{
 		$self->{_headerlist}->{lc( $self->{_headers}->[$counter])} = $self->{_headers}->[$counter+1];
-		#print " Header : $self->{_headerlist}->{lc( $self->{_headers}->[$counter])}\n";
 		$counter++;
 		$counter++;
 	};
 	return ();
 };
+#######################################################################################
+#
+# ParsePostdata
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub ParsePostdata # (datasize) -> (data)
 {
 	my ( $self ) = shift;
@@ -1703,12 +1784,19 @@ sub ParsePostdata # (datasize) -> (data)
 	{
 		$data =~ s/\+/ /g;
 		$data =~ s/%(..)/pack("C",hex($1))/ge;
-		$data =~ s/[\'\^\`:\;\'&?]//g; #`
+		$data =~ s/[\'\^\`\;\'&?]//g; #`
 		my ( $var, $val ) = split(/=/,$data);
 		$self->{_postdata}->{$var} = $val;
 	};
 	return ( );
 };
+#######################################################################################
+#
+# HtmlMain
+#
+# Input validation : OK (BV 11/07/2009)
+#
+#######################################################################################
 sub HtmlMain # () -> ()
 {
 	my ( $self ) = shift;
@@ -1782,75 +1870,90 @@ sub HtmlMain # () -> ()
 		my ( $table ) = TableFile->new();
 		$table->SetFile( $gsection->GetSpoolDir() . '/'  . "$statusfile" . '.tbl' );
 		@lines = $table->ReadLast( $hsection->GetReportlines(), $page );	
-		foreach $line ( @lines)
+		foreach $line ( @lines )
 		{
 			chomp( $line );
-			my ( $statusbits, $section, $name, $timestamp, $status, $size, $destsize, $destfree,$id ) = split( /,/,$line );
+			$line = ::StrCl( $line );
+			my ( $statusbits, $section, $name, $timestamp, $statustext, $size, $destsize, $destfree,$id ) = split( /,/,$line );
+			$statusbits = ::NumCl( $statusbits );
+			$section = ::StrCl( $section );
+			$name = ::StrCl( $name );
+			$timestamp = ::NumCl( $timestamp );
+			$statustext = ::StrCl( $statustext );
+			$size = ::NumCl( $size );
+			$destsize = ::NumCl( $destsize );
+			$destfree = ::NumCl( $destfree );
+			$id = ::NumCl( $id );
 			my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( $timestamp );
-			my ( $date ) =  sprintf( "%02d/%02d/%02d %02d:%02d" ,$mday,( $mon + 1 ),( $year + 1900 ), $hour, $min );
-			$self->AddHtml ("<tr>\n" . "<td class=\"lines\"><a class=\"line\" href=\"/detail/$id\">[$section] $name</a>\n" . "</td>\n");
-			$self->AddHtml ("<td class=\"lines\">$date\n" . "</td>\n");
-			$self->AddHtml ("<td class=\"blue\">\n");
+			my ( $date ) =  sprintf( "%02d/%02d/%02d %02d:%02d", $mday, ( $mon + 1 ), ( $year + 1900 ), $hour, $min );
+			$self->AddHtml ( "<tr>\n" . "<td class=\"lines\"><a class=\"line\" href=\"/detail/$id\">[$section] $name</a>\n" . "</td>\n" );
+			$self->AddHtml ( "<td class=\"lines\">$date\n" . "</td>\n" );
+			$self->AddHtml ( "<td class=\"blue\">\n" );
 			if ( $destsize ne 0 )
 			{
-				$self->AddHtml ("<div>\n");
+				$self->AddHtml ( "<div>\n" );
 			};
-			$self->AddHtml (HumanBytes($size));
+			$self->AddHtml ( ::HumanBytes( $size ) );
 			if ( $destsize ne 0 )
 			{
-				$self->AddHtml ("&nbsp;(" . int( 100 - ($destfree / $destsize)*100) . "%)\n");
-				#$self->AddHtml ("<div class=\"bar\" nowrap style=\"width: " . int( 100 - ($destfree / $destsize)*100)  . "% \"></div>\n");
-				$self->AddHtml ("<div style=\"background: rgb(255,0,0); float: left; color: rgb(255,255,0); overflow: hidden; border: 0px; margin: 0px 0px 0px 0px; height: 4px; padding: 0; width: " . int( 100 - ($destfree / $destsize)*100)  . "% \"></div>");
-				$self->AddHtml ("</div>\n");
+				$self->AddHtml ( "&nbsp;(" . int( 100 - ( $destfree / $destsize ) * 100 ) . "%)\n" );
+				$self->AddHtml ( "<div style=\"background: rgb(255,0,0); float: left; color: rgb(255,255,0); overflow: hidden; border: 0px; margin: 0px 0px 0px 0px; height: 4px; padding: 0; width: " . int( 100 - ( $destfree / $destsize ) * 100 )  . "% \"></div>" );
+				$self->AddHtml ( "</div>\n" );
 			}
-			$self->AddHtml ("</td>\n");
-			$self->AddHtml ("<td ");
+			$self->AddHtml ( "</td>\n" );
+			$self->AddHtml ( "<td " );
 			if ( $statusbits & 24 ) # Invalid
 			{
-				$self->AddHtml ("class=\"red\"");
+				$self->AddHtml ( "class=\"red\"" );
 			}
 			elsif ( $statusbits & 16 ) # Error
 			{
-				$self->AddHtml ("class=\"red\"");
+				$self->AddHtml ( "class=\"red\"" );
 			}
 			elsif ( $statusbits & 8 ) # Warning
 			{
-				$self->AddHtml ("class=\"orange\"");
+				$self->AddHtml ( "class=\"orange\"" );
 			}
 			else # OK
 			{
-				$self->AddHtml ("class=\"green\"");
+				$self->AddHtml ( "class=\"green\"" );
 			}
-			$self->AddHtml (">$status</td>\n");
+			$self->AddHtml (">$statustext</td>\n");
 			$self->AddHtml ("<td ");
 			if ( ( $statusbits & 1 ) and ( $statusbits & 2 ) )
 			{
-				$self->AddHtml ("class=\"green\">Mail &amp; Report");
+				$self->AddHtml ( "class=\"green\">Mail &amp; Report" );
 			}
 			elsif ( $statusbits & 2 )
 			{
-				$self->AddHtml ("class=\"green\">Report");
+				$self->AddHtml ( "class=\"green\">Report" );
 			}
 			elsif ( $statusbits & 1 )
 			{
-				$self->AddHtml ("class=\"green\">Mail");
+				$self->AddHtml ( "class=\"green\">Mail" );
 			}
 			else
 			{
-				$self->AddHtml ("class=\"orange\">Pending");
+				$self->AddHtml ( "class=\"orange\">Pending" );
 			};
-			$self->AddHtml ("</td>\n" . "</tr>\n");
+			$self->AddHtml ( "</td>\n" . "</tr>\n" );
 		};
    	}
 	else
 	{
-		$self->AddHtml ("<tr><td class=\"orange\" colspan=\"5\">No data</td></tr>");
+		$self->AddHtml ( "<tr><td class=\"orange\" colspan=\"5\">No data</td></tr>" );
 	};
-	$self->AddHtml ("</tbody>\n" . "</table>\n" . "\n");
+	$self->AddHtml ( "</tbody>\n" . "</table>\n" . "\n" );
 	$self->HtmlBodyBottom();
 	return();
 };
-# Display detailed info for entry
+#######################################################################################
+#
+# HtmlDetail : Display detailed info for entry
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub HtmlDetail # ( $uri ) -> ()
 {
 	my ( $self ) = shift;
@@ -1887,7 +1990,13 @@ sub HtmlDetail # ( $uri ) -> ()
 	$self->HtmlBodyBottom();
 	return();
 };
-##################################################################################
+#######################################################################################
+#
+# HtmlLogs :
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub HtmlLogs # () -> ()
 {
 	my ( $self ) = shift;
@@ -1993,8 +2102,17 @@ sub HtmlLogs # () -> ()
 			foreach $line ( @lines )
 			{
 				chomp( $line );
+				$line = ::StrCl( $line );
 				my ( $statusbits, $section, $name, $timestamp, $status, $size, $destsize, $destfree,$id ) = split( /,/,$line );
-				my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( $timestamp );
+				if ( !defined $statusbits ) { $statusbits = 24 };
+				if ( !defined $section ) { $section = " " };
+				if ( !defined $name ) { $name = " " };
+				if ( !defined $timestamp ) { $timestamp = 0 };
+				if ( !defined $status ) { $status = "" };
+				$size = ::NumCl( $size );
+				$destsize = ::NumCl( $destsize );
+				$destfree = ::NumCl( $destfree );
+				my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime( $timestamp );
 				my ($date ) = $mday . "/" . ( $mon + 1 ) . "/" . ( $year + 1900 ) . " " . sprintf( "%02d:%02d" , $hour, $min );
 				$self->AddHtml( "<tr>\n" . "<td class=\"col\">\r\n" );
 				
@@ -2015,7 +2133,7 @@ sub HtmlLogs # () -> ()
 				if ( -e $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".log" )
 				{
 					$size = -s $gsection->GetLogDir() . "/" . $section . "." . $timestamp . ".log";
-					$self->AddHtml( "<td class=\"lines\">" . HumanBytes($size) . "\n" . "</td>\n" );
+					$self->AddHtml( "<td class=\"lines\">" . ::HumanBytes( $size ) . "\n" . "</td>\n" );
 				}
 				else
 				{
@@ -2024,7 +2142,7 @@ sub HtmlLogs # () -> ()
 				if ( -e $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".lst" )
 				{
 					$size = -s $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".lst";
-					$self->AddHtml( "<td class=\"lines\">" . HumanBytes($size) . "\n" . "</td>\n" );
+					$self->AddHtml( "<td class=\"lines\">" . ::HumanBytes($size) . "\n" . "</td>\n" );
 				}
 				else
 				{
@@ -2035,13 +2153,20 @@ sub HtmlLogs # () -> ()
 		}
 		else
 		{
-			$self->AddHtml( "<tr><td class=\"orange\"  colspan=\"5\">No data</td></tr>");
+			$self->AddHtml( "<tr><td class=\"orange\"  colspan=\"5\">No data</td></tr>" );
 		};
 	};
-	$self->AddHtml("</tbody>\n" . "</table>\n" . "\n");
+	$self->AddHtml( "</tbody>\n" . "</table>\n" . "\n" );
 	$self->HtmlBodyBottom();
-	return ();
+	return();
 };
+#######################################################################################
+#
+# HtmlNotfound :
+#
+# Input Validation : PENDING!
+#
+#######################################################################################
 sub HtmlNotfound # () -> ()
 {
 	my ( $self ) = shift;
@@ -2053,20 +2178,17 @@ sub HtmlNotfound # () -> ()
 	my ( $var, $val );
 	$self->HtmlBodyTop();
 	$self->AddHtml( '<br><h1>404 Not Found</h1><p>Page Not Found</p>' );
-	#$self->AddHtml( "Method : " . $self->{_method} . "<br>" );
 	$self->AddHtml( '<p>The requested URL ' . $self->{_uri} . ' was not found on this server.</p>' );
-	#$self->AddHtml( "Protocol : " . $self->{_protocol} . "<br>" );
-	#if ( $self->{_method} eq "POST" )
-	#{
-	#	$self->AddHtml( "<p><b>Postdata:</b></p>" );
-	#	while (( $var, $val) = each ( %{$self->{_postdata}} ))
-	#	{
-	#		$self->AddHtml( "Line :'$var' : '$val'<br>" );
-	#	};
-	#};
 	$self->HtmlBodyBottom();
-	return ();
+	return();
 };
+#######################################################################################
+#
+# HtmlConfig :
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub HtmlConfig # () -> ()
 {
 	use MIME::Base64;
@@ -2081,24 +2203,15 @@ sub HtmlConfig # () -> ()
 	};
 	if ( defined ( $self->{_headerlist}->{"authorization"} ) )
 	{
-		#print " Typed : $headers{'authorization'} Listed : Basic " . encode_base64("user:password","");
-		if ( $self->{_headerlist}->{"authorization"} eq "Basic " . encode_base64("$authstring","") )
-		{
-			#authentication OK!
-		}
-		else
-		{
-			#authentication NOT ok!
-			return(0);
-		};
+		return(0) unless( $self->{_headerlist}->{"authorization"} eq "Basic " . encode_base64( "$authstring","" ) )
 	}
 	else
 	{
-		return(0);
+		return( 0 );
 	};
 	$self->HtmlBodyTop();
 	$self->AddHtml( "<br><b>Config file:</b><br><br>" );
-	if (-e $self->{_configfile} )
+	if ( -e $self->{_configfile} )
 	{
 		my $cfg = Config::IniFiles->new( -file => $self->{_configfile} );
 		foreach my $section ( $cfg->Sections)
@@ -2107,7 +2220,7 @@ sub HtmlConfig # () -> ()
 			$self->AddHtml( '<form action="config" method="POST">' . "\r\n<b>[" . "$section" . "]</b>&nbsp;&nbsp;" . '<input type="hidden" name="section" value="' .  "$section" . '" size="20" ><input type="Submit" value="Edit"></form>' . "\r\n" );
 			my @values = $cfg->Parameters($section);
 			$self->AddHtml( '<table border="1">' );
-			foreach $var (@values)
+			foreach $var ( @values )
 			{
 				$val = $cfg->val($section, $var);
 				$val =~ s/\</&lt;/g;
@@ -2123,8 +2236,15 @@ sub HtmlConfig # () -> ()
 		};
 	};
 	$self->HtmlBodyBottom();
-	return (1);
+	return( 1 );
 };
+#######################################################################################
+#
+# HtmlEditSection :
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub HtmlEditsection # () -> () 
 {
 	my ( $self ) = shift;
@@ -2139,19 +2259,11 @@ sub HtmlEditsection # () -> ()
 	$section = $self->{_postdata}->{"section"};
 	if ( defined ( $self->{_headerlist}->{"authorization"} ) )
 	{
-		if ( $self->{_headerlist}->{"authorization"} eq ("Basic " . encode_base64("$authstring","")) )
-		{
-			#Authentication OK!
-		}
-		else
-		{
-			#Authentication NOT ok!
-			return(0);
-		};
+		return( 0 ) unless( $self->{_headerlist}->{"authorization"} eq ("Basic " . encode_base64("$authstring","")) )
 	}
 	else
 	{
-		return(0);
+		return( 0 );
 	};
 	$self->HtmlBodyTop();
 	$self->AddHtml( '<br>Editing section <b>' . $section . ':</b>' . "\r\n" . '<br><br>' );
@@ -2185,8 +2297,15 @@ sub HtmlEditsection # () -> ()
 		$self->AddHtml( '<input type="Submit" value="OK" name="ok"></form>' . "\r\n" );
 	};
 	$self->HtmlBodyBottom();
-	return (1);
+	return( 1 );
 };
+#######################################################################################
+#
+# HtmlWriteConfig :
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub HtmlWriteconfig # () -> ()
 {
 	my ( $self ) = shift;
@@ -2325,6 +2444,13 @@ sub HtmlWriteconfig # () -> ()
 	$self->HtmlBodyBottom();
 	return (1);
 };
+#######################################################################################
+#
+# Htmltest :
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub HtmlTest # () -> ()
 {
 	my ( $self ) = shift;
@@ -2354,11 +2480,18 @@ sub HtmlTest # () -> ()
 		};
 	};
 	$self->AddHtml( '<br>Form submit testing<br>' );
-	$self->AddHtml( '<form action="test" method="POST">Data1: <input type="text" name="data1" value="Mickey" size="20"><br>Data2: <input type="text" name="data2" value="Mouse" size="20"><br><input type="submit" value="Submit"></form>' );
-	$self->AddHtml( '<form action="test" method="POST"><input type="hidden" name="data4" value="Mickey" size="20"><br>Data3: <input type="text" name="data3" value="Mouse" size="20"><br><input type="submit" value="Submit"></form>' );
+	$self->AddHtml( '<form action="test" method="POST">Data1: <input type="text" name="data1" value="Some data" size="20"><br>Data2: <input type="text" name="data2" value="More data" size="20"><br><input type="submit" value="Submit"></form>' );
+	$self->AddHtml( '<form action="test" method="POST"><input type="hidden" name="data4" value="Other data" size="20"><br>Data3: <input type="text" name="data3" value="More data..." size="20"><br><input type="submit" value="Submit"></form>' );
 	$self->HtmlBodyBottom();
 	return ();
 };
+#######################################################################################
+#
+# HtmlBodyTop :
+#
+# Input validation : NONE
+#
+#######################################################################################
 sub HtmlBodyTop # () -> ()
 {
 	my ( $self ) = shift;
@@ -2599,8 +2732,6 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( '<tr>' . "\r\n" );
 	$self->AddHtml( '<td class="menu">' . "\r\n" );
 	$self->AddHtml( '<span class="menu"><a class="menu" href="/">Reports</a></span>' . "\r\n" );
-	#$self->AddHtml( '<span class="menu"><a class="menu" href="/backup">Backup</a></span>' . "\r\n" );
-	#$self->AddHtml( '<span class="menu"><a class="menu" href="/restore">Restore</a></span>' . "\r\n" );
 	$self->AddHtml( '<span class="menu"><a class="menu" href="/logs">Logs</a></span>' . "\r\n" );
 	$self->AddHtml( '<span class="menu"><a class="menu" href="/config">Config</a></span>' . "\r\n" );
 	#$self->AddHtml( '<span class="menu"><a class="menu" href="/test">Test</a></span>' . "\r\n" );
@@ -2608,6 +2739,13 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( '<tr><td>' . "\r\n" );
 	return();
 }
+#######################################################################################
+#
+# HtmlBodyBottom :
+#
+# Input validation : NONE
+#
+#######################################################################################
 sub HtmlBodyBottom # () -> ()
 {
 	my ( $self ) = shift;
@@ -2623,70 +2761,13 @@ sub HtmlBodyBottom # () -> ()
 	return();
 };
 ##################################################################################
-sub HumanBytes
-{
-	my ( $bytes ) = @_;
-	my ( $output );
-	#byte	  B
-   	#kilobyte  K = 2**10 B = 1024 B
-	#megabyte  M = 2**20 B = 1024 * 1024 B
-	#gigabyte  G = 2**30 B = 1024 * 1024 * 1024 B
-	#terabyte  T = 2**40 B = 1024 * 1024 * 1024 * 1024 B
-	#petabyte  P = 2**50 B = 1024 * 1024 * 1024 * 1024 * 1024 B
-	#exabyte   E = 2**60 B = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 B
-	#zettabyte Z = 2**70 B = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 B
-	#yottabyte Y = 2**80 B = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 B
-	if ( defined $bytes and ( $bytes != 0 ) )
-	{
-		if ( $bytes > ( 2 ** 80 ) )
-		{
-			$output = sprintf("%.2f&nbsp;YB",( $bytes / ( 2 ** 80 ) ) );
-		}
-		elsif ( $bytes > ( 2 ** 70) )
-		{
-			$output = sprintf("%.2f&nbsp;ZB",( $bytes / ( 2 ** 70 ) ) );
-		}
-		elsif ( $bytes > ( 2 ** 60) )
-		{
-			$output = sprintf("%.2f&nbsp;EB",( $bytes / ( 2 ** 60 ) ) );
-		}
-		elsif ( $bytes > ( 2 ** 50) )
-		{
-			$output = sprintf("%.2f&nbsp;PB",( $bytes / ( 2 ** 50 ) ) );
-		}
-		elsif ( $bytes > ( 2 ** 40) )
-		{
-			$output = sprintf("%.2f&nbsp;TB",( $bytes / ( 2 ** 40 ) ) );
-		}
-		elsif ( $bytes > ( 2 ** 30) )
-		{
-			$output = sprintf("%.2f&nbsp;GB",( $bytes / ( 2 ** 30 ) ) );
-		}
-		elsif ( $bytes > ( 2 ** 20) )
-		{
-			$output = sprintf("%.2f&nbsp;MB",( $bytes / ( 2 ** 20 ) ) );
-		}
-		elsif ( $bytes > ( 2 ** 10) )
-		{
-			$output = sprintf("%.2f&nbsp;KB",( $bytes / ( 2 ** 10 ) ) );
-		}
-		else
-		{
-			$output = sprintf("%.0f&nbsp;B",( $bytes ) );
-		};
-	}
-	else
-	{
-		$output = "-"
-	};
-	return( $output );
-};
-##################################################################################
 # End Class HttpServer
 ####################################################################################################################################################################
 ##################################################################################
 #
 # Class CommandLine : Command line parameter storage class
+#
+# Input Validation : OK (Done by Config::Ini)
 #
 ##################################################################################
 package CommandLine;
@@ -3303,13 +3384,6 @@ sub GetServerAuth
 #         Bit 7 : 0-Local 1-Remote                                             (128)
 #
 ##################################################################################
-#
-# 1. Check if locked
-# 2. If locked, wait until unlocked
-# 3. If reading, no lock needed, read
-# 4. If writing, lock, write and unlock
-# 5. Done
-#
 package TableFile;
 # We use tied arrays as this allows us to modify anywhere in the file
 use Tie::File;
@@ -3340,7 +3414,13 @@ sub new
 	bless $self, $class;
 	return $self;
 };
-# ReadLast -> Read the last n lines and return an array, used for web interface
+#######################################################################################
+#
+# ReadLast : Read the last n lines and return an array, used for web interface
+#
+# Input validation : OK (BV 11/07/2009)
+#
+#######################################################################################
 sub ReadLast # ( numlines, page ) -> ( @lines )
 {
 	my ( $self ) = shift;
@@ -3364,10 +3444,22 @@ sub ReadLast # ( numlines, page ) -> ( @lines )
 	{
 		# Get the line
 		$line = $lines[ ( $totallines - 1 ) - $counter ];
+		# validate the line
+		$line = ::StrCl( $line );
 		# Split into variables
-		my ( $status, $section, $name, $timestamp, $statustext, $size, $destsize, $destfree ) = split( /,/,$line );
+		my ( $statusbits, $section, $name, $timestamp, $statustext, $size, $destsize, $destfree ) = split( /,/,$line );
+		# Validate the file data read
+		$line = ::StrCl( $line );
+		$statusbits = ::StrCl( $statusbits );
+		$section = ::StrCl( $section );
+		$name = ::StrCl( $name );
+		$timestamp = ::NumCl( $timestamp );
+		$statustext = ::StrCl( $statustext );
+		$size = ::NumCl( $size );
+		$destsize = ::NumCl( $destsize );
+		$destfree = ::NumCl( $destfree );
 		# Prepare the variables in one line
-		$line = $status . "," . $section . "," . $name . "," . $timestamp . "," . $statustext . "," . $size . "," . $destsize . "," . $destfree . "," . ( ( $totallines - 1 ) - $counter );
+		$line = $statusbits . "," . $section . "," . $name . "," . $timestamp . "," . $statustext . "," . $size . "," . $destsize . "," . $destfree . "," . ( ( $totallines - 1 ) - $counter );
 		# Put them in our array
 		push( @lastlines,  $line );
 		# Count lines
@@ -3377,8 +3469,13 @@ sub ReadLast # ( numlines, page ) -> ( @lines )
 	untie @lines;
 	return( @lastlines );
 };
-# GetNumLines -> Get the number of lines in the file
-# The timestamp field is converted form unixtime to human readable format
+#######################################################################################
+#
+# GetNumLines : Get the number of lines in the file
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub GetNumLines # ( ) -> ( $numlines )
 {
 	my ( $self ) = shift;
@@ -3390,7 +3487,13 @@ sub GetNumLines # ( ) -> ( $numlines )
 	untie @lines;
 	return( $totallines );
 };
-# AddLine -> Add line to end of file
+#######################################################################################
+#
+# AddLine : Add line to end of file
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub AddLine # ( ) -> ( )
 {
 	my ( $self ) = shift;
@@ -3403,7 +3506,13 @@ sub AddLine # ( ) -> ( )
 	untie @lines;
 	return();
 };
-# WriteLine -> Write line number $linenum in place
+#######################################################################################
+#
+# WriteLine : Write line number $linenum in place
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub WriteLine # ( $linenum  ) -> () 
 {
 	my ( $self ) = shift;
@@ -3419,7 +3528,13 @@ sub WriteLine # ( $linenum  ) -> ()
 	untie @lines;
 	return();
 };
-# ReadLine -> Read line number $linenum
+#######################################################################################
+#
+# ReadLine : Read line number "n"
+#
+# Input validation : OK (BV 11/7/2009)
+#
+#######################################################################################
 sub ReadLine # ( $linenum  ) -> ( $line ) 
 {
 	my ( $self ) = shift;
@@ -3431,10 +3546,28 @@ sub ReadLine # ( $linenum  ) -> ( $line )
 	undef $ar;
 	untie @lines;
 	chomp( $line );
+	# Validate the line read
+	$line = ::StrCl( $line );
 	( $self->{_statusbits}, $self->{_section}, $self->{_name}, $self->{_timestamp}, $self->{_statustext}, $self->{_size}, $self->{_destsize}, $self->{_destfree} ) = split( /,/, $line );
+	# Validate the file data read
+	$self->{_statusbits} = ::StrCl( $self->{_statusbits} );
+	$self->{_section} = ::StrCl( $self->{_section} );
+	$self->{_name} = ::StrCl( $self->{_name} );
+	$self->{_timestamp} = ::NumCl( $self->{_timestamp} );
+	$self->{_statustext} = ::StrCl( $self->{_statustext} );
+	$self->{_size} = ::NumCl( $self->{_size} );
+	$self->{_destsize} = ::NumCl( $self->{_destsize} );
+	$self->{_destfree} = ::NumCl( $self->{_destfree} );
 	return( $line );
 };
-# FindLines -> Get a list of lines with bit $bit set, added the line number as the first element in the array
+#######################################################################################
+#
+# FindLines : Get a list of lines with bit $bit set, added the line number as the first
+#             element in the array
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub FindLines # ( $bit, $bitvalue ) -> ( @lines )
 {
 	my ( $self ) = shift;
@@ -3447,7 +3580,18 @@ sub FindLines # ( $bit, $bitvalue ) -> ( @lines )
 	my ( $ar ) = tie @lines, 'Tie::File', $self->{_file};
 	foreach $line ( @lines )
 	{
+		# Validate the lines read
+		$line = ::StrCl( $line );
 		my ( $statusbits, $section, $name, $timestamp, $statustext, $size, $destsize, $destfree ) = split( /,/,$line );
+		# Validate the values read
+		$statusbits = ::StrCl( $statusbits );
+		$section = ::StrCl( $section );
+		$name = ::StrCl( $name );
+		$timestamp = ::NumCl( $timestamp );
+		$statustext = ::StrCl( $statustext );
+		$size = ::NumCl( $size );
+		$destsize = ::NumCl( $destsize );
+		$destfree = ::NumCl( $destfree );
 		if ( ( $statusbits & $bit ) == $bitvalue ) # check if bit 0 set
 		{
 			push( @pendinglines, ( $counter . "," . $line ) );
@@ -3458,6 +3602,13 @@ sub FindLines # ( $bit, $bitvalue ) -> ( @lines )
 	untie @lines;
 	return( @pendinglines );
 };
+#######################################################################################
+#
+# UpdateStatusBits
+#
+# Input validation : PENDING!
+#
+#######################################################################################
 sub UpdateStatusBits # ( $bit, $bitvalue, \@lines ) -> ()
 {
 	my ( $self ) = shift;
