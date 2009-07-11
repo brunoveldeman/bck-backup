@@ -1,6 +1,6 @@
 #! /usr/bin/perl --
 # bck-backup.
-# Written by : Bruno Veldeman
+# Written & parts copyright by : Bruno Veldeman
 #
 # To simplify use, some modified modules have been copied into the code, this way no extra modules have to be installed.
 # I'll check these modules from time to time to ensure they stay more or less up to date. (Sendmail.pm, Config::Inifiles)
@@ -67,7 +67,7 @@ if ( $cmdln->GetHttpFlag )
 {
 	my $web = new HttpServer();
 	$web->SetConfigfile( $cmdln->GetConfigFileName );
-	$web->Start();
+	$web->Start( $cmdln->GetHttpFlag );
 	exit(0);
 };
 if ( $cmdln->GetReportFlag )
@@ -398,7 +398,11 @@ sub GetIP # (webaddress) -> (myip)
 	};
 	return ($myip);
 };
-
+##################################################################################
+#
+# Sub HumanBytes :
+#
+##################################################################################
 sub HumanBytes
 {
 	my ( $bytes ) = @_;
@@ -456,6 +460,54 @@ sub HumanBytes
 		$output = "-"
 	};
 	return( $output );
+};
+##################################################################################
+#
+# Sub StrCl : Check a string so it is valid input. Only let alfanum and a few 
+#             harmless chars through, if undefined, return a space so things won't
+#             break
+#
+##################################################################################
+sub StrCl # ( string ) -> ( clean string )
+{
+	my ( $string ) = shift;
+	# If undefined, make it one space.
+	$string = " " unless $string;
+	# Remove al chars exept a-z 0-9 A-Z , . _ - : ; and space
+	$string =~ s/[^\w\,\._-:;\s]//g;
+	return ( $tring );
+};
+##################################################################################
+#
+# Sub NumCl : Check a number so it is valid input. Only let numbers through, if 
+#             undefined, return a 0 so things won't break
+#
+##################################################################################
+sub NumCl # ( num ) -> ( clean num )
+{
+	my ( $num ) = shift;
+	# If undefined, make it 0
+	$num = 0 unless $num;
+	# Remove al chars exept 0-9
+	$num =~ s/[^\d]//g;
+	return ( $num );
+};
+##################################################################################
+#
+# Sub NumNz : Check a number so it is valid input. Only let numbers through, if 
+#             undefined or 0, return a 1 so things won't break
+#
+##################################################################################
+sub NumNz # ( num ) -> ( clean num )
+{
+	my ( $num ) = shift;
+	# If undefined, make it 0
+	$num = 1 unless $num;
+	# Remove al chars exept 0-9
+	$num =~ s/[^\d]//g;
+	
+	$num = 1 unless ( $num ne 0 );
+	return ( $num );
 };
 ##################################################################################
 #
@@ -1355,8 +1407,10 @@ sub ParseRequest
 sub Start # () -> ()
 {
 	my ( $self ) = shift;
+	my ( $type ) = shift;
 	$self->ParseRequest();
-	if ( $self->{_method} eq "GET" )
+	# If $type bit 0 = 1, respond to HTTP GET requests
+	if ( ( $self->{_method} eq "GET" ) and ( $type & 1 ) )
 	{
 		if ( $self->{_uri} eq "/" )
 		{
@@ -1402,7 +1456,7 @@ sub Start # () -> ()
 			$self->SendBody();
 		};
 	}
-	elsif ( $self->{_method} eq "POST" )
+	elsif ( ( $self->{_method} eq "POST" ) and ( $type & 1 ) )
 	{
 		if ( $self->{_uri} eq "/config" )
 		{
@@ -1479,7 +1533,8 @@ sub Start # () -> ()
 			$self->SendBody();
 		};
 	}
-	elsif ( lc( $self->{_method} ) eq "bck")
+	# If $type bit 1 = 1, respond to bck report server requests
+	elsif ( ( lc( $self->{_method} ) eq "bck" ) and ( $type & 2 ) )
 	{
 		# Create a random seed
 		my ( $seed ) = sprintf("%2x", int( rand( 255 ) ) );
@@ -2401,7 +2456,7 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( 'text-align: center;' );
 	$self->AddHtml( 'padding: 0px;' );
 	$self->AddHtml( 'margin: 0px;' );
-	$self->AddHtml( 'height: 22;' );
+	$self->AddHtml( 'height: 22px;' );
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( 'th.lines {' );
 	$self->AddHtml( 'border-width: 2px;' );
@@ -2726,7 +2781,7 @@ sub GetMailFlag {
 #parse command line and fill class
 sub ParseCommandLine{ # () -> (ok)
 	my ( $self ) = @_;
-	my ( $ok, $verbose, $configfile, $langfile, $help, $version, $debug, $install, $check, $do, $http, $report, $mail, $update);
+	my ( $ok, $verbose, $configfile, $langfile, $help, $version, $debug, $install, $check, $do, $httpserver, $reportserver, $report, $mail, $update);
 	my ( $status ) = 0;
 	$ok = @ARGV;
 	if ( $ok > 0 )
@@ -2743,7 +2798,8 @@ sub ParseCommandLine{ # () -> (ok)
 			'mail'		=> \$mail,
 			'version'	=> \$version,
 			'help|?'	=> \$help,
-			'http'		=> \$http,
+			'httpserver'=> \$httpserver,
+			'reportserver'=> \$reportserver,
 			'report'	=> \$report
 		);
 	}
@@ -2838,14 +2894,22 @@ sub ParseCommandLine{ # () -> (ok)
 	{
 		$self->{_help} = 0;
 	};
-	if (defined $http)
+	if (defined $httpserver)
 	{
 		$self->{_http} = 1;
+		if (defined $reportserver)
+		{
+			$self->{_http} = 3;
+		};
 		return (0);
 	}
 	else
 	{
 		$self->{_http} = 0;
+		if (defined $reportserver)
+		{
+			$self->{_http} = 2;
+		};
 	};
 	if (defined $report)
 	{
