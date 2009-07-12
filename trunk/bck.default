@@ -36,7 +36,7 @@ mailtext=/etc/bck/alert.txt
 #
 [http]
 user=user
-pass=password
+password=password
 reportlines=25
 #
 # update server configuration
@@ -52,7 +52,7 @@ url=http://bck-backup.svn.sourceforge.net/viewvc/bck-backup/stable/bck
 server=my.report.server
 port=serverport
 password=password to access server
-serverauth=server password
+serverpassword=server password
 #
 # BLOCK
 # [blockname]
