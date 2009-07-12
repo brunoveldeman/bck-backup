@@ -28,7 +28,7 @@ use strict;
 use English;
 use Config;
 # Program version
-my( $version ) = "2.2.0";
+my( $version ) = "2.2.1";
 # Exit state variable
 my( $state ) = 0;
 # Evaluate the command line parameters
@@ -1618,7 +1618,7 @@ sub Start # () -> ()
 		my ( $seed ) = sprintf("%2x", int( rand( 255 ) ) );
 		# Get report access password.
 		my ( $rsection ) = ReportSection->new();
-		my ( $password ) = $rsection->GetServerAuth();
+		my ( $password ) = $rsection->GetServerPassword();
 
 		# Create password string for compare
 		my  ( $authstring ) = crypt( $password, $seed );
@@ -2285,25 +2285,30 @@ sub HtmlConfig # () -> ()
 		return( 0 );
 	};
 	$self->HtmlBodyTop();
-	$self->AddHtml( "<br><b>Config file:</b><br><br>" );
 	if ( -e $self->{_configfile} )
 	{
-		my ( $cfg, $mastercfg );
+		my ( $cfg, $mastercfg, $chkcfg );
 		if ( -r "/etc/bck/bck.default" )
 		{
-			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
-			  $cfg = Config::IniFiles->new( -file => $self->{_configfile}, -import => $mastercfg );
+			$mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+			$cfg = Config::IniFiles->new( -file => $self->{_configfile}, -import => $mastercfg );
 		}
 		else
 		{
-			$cfg 	= Config::IniFiles->new( -file => $self->{_configfile} );
+			$cfg = Config::IniFiles->new( -file => $self->{_configfile} );
 		};
+		$chkcfg = Config::IniFiles->new( -file => $self->{_configfile} );
+		$self->AddHtml( '<table class="lines"><thead>' );
+		$self->AddHtml( "<tr><th class=\"pages\" colspan=\"3\">Config file: " . $self->{_configfile} . "</th></tr></thead><tbody>" );
 		foreach my $section ( $cfg->Sections)
 		{
-			$self->AddHtml( "<hr>" );
-			$self->AddHtml( '<form action="config" method="POST">' . "\r\n<b>[" . "$section" . "]</b>&nbsp;&nbsp;" . '<input type="hidden" name="section" value="' .  "$section" . '" size="20" ><input type="Submit" value="Edit"></form>' . "\r\n" );
 			my @values = $cfg->Parameters($section);
-			$self->AddHtml( '<table border="1">' );
+			$self->AddHtml( '<tr><th class="pages" colspan="3"><form class="left" action="config" method="POST">' );
+			$self->AddHtml( '<input type="hidden" name="section" value="' .  "$section" . '">' );
+			$self->AddHtml( '<input class="button" type="Submit" value="Edit">' );
+			$self->AddHtml( "<label> Section : [" . "$section" . "]</label>" );
+			$self->AddHtml( '</form></th></tr>' . "\r\n" );
+			$self->AddHtml( '<tr><th class="lines" width="200">Setting</th><th class="lines" width="200">Value</th><th class="lines" width="200">Default value</th></tr>' );
 			foreach $var ( @values )
 			{
 				$val = $cfg->val($section, $var);
@@ -2313,12 +2318,38 @@ sub HtmlConfig # () -> ()
 				$val =~ s/\"/&quot;/g;
 				if ( $var =~ m/pass/ )
 				{
-					$val = "************";
+					$val = "<span title=\"$val\">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>";
 				};
-				$self->AddHtml( "<tr><td>" . $var  . " = </td><td> " . $val . "</td></tr>\r\n" );
+				$self->AddHtml( '<tr class="local">' );
+				$self->AddHtml( "<td class=\"setting\">" . $var  . "</td>" );
+				if ( defined $chkcfg->val( $section, $var ) )
+				{
+					$self->AddHtml( '<td class="value">' . $val );
+				}
+				else
+				{
+					$self->AddHtml( '<td class="default"><span title="From default">' . $val . '</span>');
+				};
+				$self->AddHtml( "</td>" );
+				if ( ( -r "/etc/bck/bck.default" ) and ( defined $mastercfg->val( $section, $var )  ) )
+				{
+					if ( $var =~ m/pass/ )
+					{
+						$self->AddHtml( "<td class=\"default\">" . "<span title=\"" . $mastercfg->val( $section, $var ) . "\">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>" . "</td></tr>" );
+					}
+					else
+					{
+						$self->AddHtml( "<td class=\"default\">" . $mastercfg->val( $section, $var ) . "</td></tr>" );
+					};
+				}
+				else
+				{
+					$self->AddHtml( "<td class=\"value\">n/a</td></tr>" );
+				};
+				$self->AddHtml( "\r\n" );
 			};
-			$self->AddHtml( '</table><hr>' );
 		};
+		$self->AddHtml( '</tbody></table>' );
 	};
 	$self->HtmlBodyBottom();
 	return( 1 );
@@ -2462,7 +2493,7 @@ sub HtmlWriteconfig # () -> ()
 				$val =~ s/\"/&quot;/g;
 				if ( $var =~ m/pass/ )
 				{
-					$val = "************";
+					$val = "&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;";
 				};
 				$self->AddHtml( '<tr><td>' . $var . ' = </td><td>' .  $val . '</td></tr>' . "\n\r" );
 			};
@@ -2503,7 +2534,7 @@ sub HtmlWriteconfig # () -> ()
 				$val =~ s/\"/&quot;/g;
 				if ( $var =~ m/pass/ )
 				{
-					$val = "************";
+					$val = "&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;";
 				};
 				$self->AddHtml( '<tr><td>' . $var . ' = </td><td>' .  $val . '</td></tr>' . "\n\r" );
 			};
@@ -2544,7 +2575,7 @@ sub HtmlWriteconfig # () -> ()
 				$val =~ s/\"/&quot;/g;
 				if ( $var =~ m/pass/ )
 				{
-					$val = "************";
+					$val = "&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;";
 				};
 				$self->AddHtml( '<tr><td>' . $var . ' = </td><td>' .  $val . '</td></tr>' . "\n\r" );
 			};
@@ -2671,7 +2702,7 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( 'table-layout: fixed;' );
 	$self->AddHtml( 'width: 100%;' );
 	$self->AddHtml( 'border-width: 1px;' );
-	$self->AddHtml( 'border-collapse: collapse;' );
+	#$self->AddHtml( 'border-collapse: collapse;' );
 	$self->AddHtml( 'border-color: #000000;' );
 	$self->AddHtml( 'border-style: solid;' );
 	$self->AddHtml( '}' . "\r\n" );
@@ -2808,6 +2839,40 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( 'font-size: 0.8em;' );
 	$self->AddHtml( 'font-style: italic;' );
 	$self->AddHtml( 'padding-right: 40px;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.setting{' );
+	$self->AddHtml( 'color: #202020;' );
+	$self->AddHtml( 'font-weight: bold;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'background: #B0B0B0;' );
+	#$self->AddHtml( 'text-align: right;' );
+	#$self->AddHtml( 'font-size: 0.8em;' );
+	#$self->AddHtml( 'font-style: italic;' );
+	$self->AddHtml( 'padding-left: 5px;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.value{' );
+	$self->AddHtml( 'color: #294A20;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'background: #B0B0B0;' );
+	#$self->AddHtml( 'text-align: right;' );
+	#$self->AddHtml( 'font-size: 0.8em;' );
+	#$self->AddHtml( 'font-style: italic;' );
+	$self->AddHtml( 'padding-left: 5px;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'td.default{' );
+	$self->AddHtml( 'color: #1E12B0;' );
+	$self->AddHtml( 'border-style: solid;' );
+	$self->AddHtml( 'border-color: #000000;' );
+	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'background: #909090;' );
+	#$self->AddHtml( 'text-align: right;' );
+	#$self->AddHtml( 'font-size: 0.8em;' );
+	#$self->AddHtml( 'font-style: italic;' );
+	$self->AddHtml( 'padding-left: 5px;' );
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( 'form.left{' );
 	$self->AddHtml( 'float: left;' );
@@ -3352,36 +3417,32 @@ sub new
 {
 	my ($class) = shift;
 	my ($configfilename) =  $cmdln->GetConfigFileName();
-	my ($user, $password, $reportlines, $backupuser, $backuppass);
+	my ($user, $password, $reportlines);
 	if (-r $configfilename )
 	{
 		my ( $cfg, $mastercfg );
 		if ( -r "/etc/bck/bck.default" )
 		{
-			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
-			  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+			$mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+			$cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
 		}
 		else
 		{
-			$cfg 	= Config::IniFiles->new( -file => $configfilename );
+			$cfg = Config::IniFiles->new( -file => $configfilename );
 		};
 		unless ($cfg)
 		{
 			die "Error in loading configuration file `$configfilename'\n Use --check option for detailed information\n";
 		}
 		$user			= $cfg->val('http', 'user');
-		$password		= $cfg->val('http', 'pass');
+		$password		= $cfg->val('http', 'password');
 		$reportlines	= $cfg->val('http', 'reportlines');
-		$backupuser		= $cfg->val('http', 'backupuser');
-		$backuppass		= $cfg->val('http', 'backuppass');
 	};
 	my $self =
 	{
 		_user			=> $user,
 		_password		=> $password,
-		_reportlines	=> $reportlines,
-		_backupuser		=> $backupuser,
-		_backuppass		=> $backuppass
+		_reportlines	=> $reportlines
 	};
 	bless $self, $class;
 	return $self;
@@ -3397,18 +3458,6 @@ sub GetPassword
 {
 	my ( $self ) = shift;
 	return $self->{_password};
-};
-#accessor method for backup user
-sub GetBackupUser
-{
-	my ( $self ) = shift;
-	return $self->{_backupuser};
-};
-#accessor method for backup password
-sub GetBackupPassword
-{
-	my ( $self ) = shift;
-	return $self->{_backuppass};
 };
 #accessor method for reportlines
 sub GetReportlines
@@ -3429,7 +3478,7 @@ sub new
 {
 	my ($class) = shift;
 	my ($configfilename) =  $cmdln->GetConfigFileName();
-	my ($server, $port, $password, $serverauth);
+	my ($server, $port, $password, $serverpassword);
 	if (-r $configfilename )
 	{
 		my ( $cfg, $mastercfg );
@@ -3449,14 +3498,14 @@ sub new
 		$server			= $cfg->val('report', 'server');
 		$port			= $cfg->val('report', 'port');
 		$password		= $cfg->val('report', 'password');
-		$serverauth		= $cfg->val('report', 'serverauth');
+		$serverpassword		= $cfg->val('report', 'serverpassword');
 	};
 	my $self =
 	{
 		_server			=> $server,
 		_port			=> $port,
 		_password		=> $password,
-		_serverauth		=> $serverauth
+		_serverpassword		=> $serverpassword
 	};
 	bless $self, $class;
 	return $self;
@@ -3480,10 +3529,10 @@ sub GetPassword
 	return $self->{_password};
 };
 #accessor method for password
-sub GetServerAuth
+sub GetServerPassword
 {
 	my ( $self ) = shift;
-	return $self->{_serverauth};
+	return $self->{_serverpassword};
 };
 ##################################################################################
 # End Class report Section

@@ -1,34 +1,59 @@
 -------------------------------
-bck-backup for Linux [English]
+	bck-backup for Linux 
 -------------------------------
 
 1. Linux instalation.
     
 1.1 Install the following packages:
 
-    gnupg
-    mt
-    rsync
-    tar
-    cdrecord
-    dvd+rw-tools
-    perl
+	gnupg
+	mt-st
+	rsync
+	tar
+	cdrecord
+	dvd+rw-tools
+	perl
+	wget
     
+1.2 Download bck-backup.
+
+	Your can download from this link:
+
+	http://sourceforge.net/projects/bck-backup/
+	
+	Or from svn if you want the latest development version:
+	
+	#>svn co https://bck-backup.svn.sourceforge.net/svnroot/bck-backup bck-backup
+
+1.3 Extract files from the tar file
+
+	#>tar xvzf bck-backup.tar.gz
+
 2. Copy files.
 
 2.1 Program file.
 
     Copy bck to /usr/local/sbin
+	
+	#>cp bck /usr/local/sbin
     
-2.2 Config file.
+2.2 Config file(s).
 
     Create a directory called bck in /etc
-    Copy the config file bck.config to /etc/bck/
-        
+	
+	#>mkdir -p /etc/bck
+    
+	Copy the config file bck.config and bck.default to /etc/bck/
+    
+	#>cp bck.config /etc/bck
+	#>cp bck.default /etc/bck
+	
 3. Configure bck-backup.
 
-    Open the program file and configure the SMTP server you want to use and
-    the username and password.
+	bck-backup can use several configuration files. The one used is defined
+	by the --config-file=/my/path/my.config.file command line option.
+	As special named configuration file called "bck.default" in "/etc/bck" can be
+	used to define default values for all configuration files. More on this later.
     The config file that comes by default has sample for each type of copy.
     Check config file structure with 
     
@@ -39,8 +64,8 @@ bck-backup for Linux [English]
 4. Test configuration.
 
     It's always a good idea to test.
-    You can run bck-backup from command line with the --debug option to to get
-    information on the progress of the copy.
+    You can run bck-backup from command line with the --debug or --verbose options
+	to to get information on the progress of the copy.
     
     To run a configured section named "test", use --do=test
     You can put several sections on one line, --do=test,section1,section2
@@ -61,14 +86,17 @@ bck-backup for Linux [English]
     
 6. Web front-end
 
-    Install an inetd server (inetutils-inetd)
-    apt-get install inetutils-inetd
+	The standard port for bck.backup is 2311, but you can configure any port.
+
+    Install an inetd server if not already installed
     
     Add a line to /etc/services
-      > bck-backup	2311/tcp			# bck-backup
+      > bck-backup		2311/tcp			# bck-backup web front-end
+	The port number "2311" is defined in this line, if you want to use another
+	port, change is here.
       
     Add line to /etc/inetd.conf
-      > bck-backup      stream  tcp     nowait  root    /usr/local/sbin/bck     /usr/local/sbin/bck --http
+      > bck-backup			stream	tcp		nowait  root    /usr/local/sbin/bck     /usr/local/sbin/bck --httpserver
 
     Restart the inetd server
       > /etc/init.d/inetutils-inetd restart
@@ -76,80 +104,145 @@ bck-backup for Linux [English]
     To show de web-interface, point a browser to the servers ip address on port 2311
       > ex.: http://192.168.100.10:2311
       
------------------------------------
-bck-backup para Linux [Castellano]
------------------------------------
+7. Report server
 
-1. Instalacion de Linux
-
-1.1 Instalar los paquetes siguientes:
-
-	gnupg
-	mt
-	rsync
-	tar
-	cdrecord
-	dvd+rw-tools
-	perl
-	
-2. Copiar archivos.
-
-2.1 Archivo de programa.
-
-    Copia bck en /usr/local/sbin
+    Install an inetd server if not already installed
     
-2.2 Archivo de configuracion.
-
-    Crear un directorio con el nombre bck en /etc
-    Copiar el archivo de configuracion en /etc/bck/
-    
-3. Configurar bck-backup.
-
-    Abre el arvhivo bck con un editor de texto y configura el servidor SMTP
-    que va usar y su usuario y password.
-    El archivo de configuracion tiene ejemplos para cada tipo de copia.
-    Compruebe la estructura del archivo de configuracion con
-    
-	#>bck --check
-	
-    Si hay errores, se listan.
-    
-4. Probar configuracion.
-
-    Es buena idea probar la configuracion.
-    Con la opcion --debug, bck-backup imprimira en pantalla el progreso de la copia.
-    
-    Para ejecutar la seccion "test" configurada, usa --do=test
-    Puede poner una serie de secciones en una linea, --do=test,section1,section2
-    seran ejecutadas en el mismo orden.
-    
-    Si quiere usar otro archivo de configuracion, y no el que esta en /etc/bck/bck.config,
-    se puede con la opcion --config-file=/my/path/my.config.file
-    
-5. Anadir linea a crontab
-
-    Insertar lineas en crontab con :
-    
-    #>crontab -e
-	
-    Para ejecutar cada lunes a viernes a las 23:30 anade la siguiente linea
-
-	30 23 * * 1-5 /usr/local/sbin/bck --do=seccion1,seccion2
-
-6. Web front-end
-
-    Instalar un servidor inetd (inetutils-inetd)
-    apt-get install inetutils-inetd
-    
-    Añadir linea en /etc/services
-      > bck-backup	2311/tcp			# bck-backup
+    Add a line to /etc/services
+      > bck-backup-remote	2312/tcp			# bck-backup report server
       
-    Añadir linea en /etc/inetd.conf
-      > bck-backup      stream  tcp     nowait  root    /usr/local/sbin/bck     /usr/local/sbin/bck --http
+    Add line to /etc/inetd.conf
+      > bck-backup-remote	stream	tcp		nowait  root    /usr/local/sbin/bck     /usr/local/sbin/bck --reportserver
 
-    Reiniciar el servidor inetd
+    Restart the inetd server
       > /etc/init.d/inetutils-inetd restart
+
+8. Running the Web front-end and the Report server on the same port
+
+    The line in /etc/services
+      > bck-backup		2311/tcp			# bck-backup web front-end and report server
       
-    Para ver la web, apuntar un navegador a la ip del servidor en el puerto 2311
-      > ej.: http://192.168.100.10:2311
-      
+    Add line to /etc/inetd.conf
+      > bck-backup-remote	stream	tcp		nowait  root    /usr/local/sbin/bck     /usr/local/sbin/bck --httpserver --reportserver
+
+    Restart the inetd server
+      > /etc/init.d/inetutils-inetd restart
+
+9. The configuration file
+
+9.1 The [global] section
+
+	[global]
+	lang= 			[English]	For future use, defines the language of the web interface and mail reports.
+	client=			[name]		This identifies the configuration and is visible in the mail reports and report server header lines.
+	sysloglevel=	[0-5]		For future use, defines what will be logged to the syslog.
+	winmsg=			[yes/no]	If yes, samba destinations on windows clients can receive a message at start and end of copy to their computer.
+	
+	The folowing entries indicate the location of binaries we want to use
+	mt=/bin/mt
+	tar=/bin/tar
+	smbmount=/usr/bin/smbmount
+	smbumount=/usr/bin/smbumount
+	smbclient=/usr/bin/smbclient
+	sudo=/usb/bin/sudo
+	rsync=/usr/bin/rsync
+	du=/usr/bin/du
+	cdrecord=/usr/bin/cdrecord
+	dvdrecord=/usr/bin/growisofs
+	dvdformat=/usr/bin/dvd+rw-format
+
+	
+	smtpserver=		[hostname]	Server to use as smtp server for mail reports.
+	smtpport=		[portnr]	Port to use to communicate to smpt server, normaly "25".
+	smtpuser=		[mail_account] Account name for authentication on smtp server.
+	smtppass=mail	[password]	Password for authentication on smtp server.
+	smtpfrom=		["User Name" <user@mail.address>] From line for mail reports.
+
+	ntpserver=		[hostname]	ntp server to use,
+	
+	ipwebaddress=	[url]		url to use to get a public ip from. If omitted, not used. (not http://)
+								ex.: whatismyip.com/automation/n09230945.asp
+
+	logdir=			[path]		path to log directory. Default is "/var/log/bck".
+	spooldir=		[path]		path to statusfile derectory. Default is "/var/spool/bck".
+	tempdir=		[path]		path to temp diretory. Default is "/var/tmp". This is where temporal files
+								for cyphering are created, make sure you have space available.
+
+	oktag=			[name]		Tag used in subject line when all section are ok. default: "backup"
+	errortag=		[name]		Tag used in subject line when at least one section has errors. default: "backup error"
+	warningtag=		[name]		Tag used in subject line when at least one section has warnings. default: "backup warning"
+	mailtext=		[text/path]	If it is a text or points to a file, will be apended at the end of all mail reports.
+								Default is /etc/bck/alert.txt, use this if you want make your customers aware of the
+								importance of backups in good condition.
+
+9.2 The [http] section
+
+	[http]
+	user=			[user]		Username for authentification on some pages in the web interface.
+	pass=			[password]	Password for authentification on some pages in the web interface.
+	reportlines=	[num]		Number of report lines to show per page in the web interface.
+	
+9.3 The [update] section
+
+	[update]
+	url=			[url]		URL to update server. ex:. http://bck-backup.svn.sourceforge.net/viewvc/bck-backup/stable/bck
+	user=			[username]	Authentification for update server (if needed).
+	password=		[password]	Authentification for update server (if needed).
+	
+9.4 The [report] section
+
+	[report]
+	server=			[hostname]	Hostname of report server.
+	port=			[portnr]	Portnumber of report server.
+	password=		[password]  Password to access server.
+	serverpassword=	[password]	Server password when running as report server.
+	
+9.5	The [mail] section
+
+	[mail]
+	mailaddres=level,mailtype ex.: admin@yoursite.com=4,html
+		level	[0-4]		Number from 0 to 4 to indicate level:
+			0: Only send report on error
+			1: Send report on error or warning
+			2: Always send report and include .log files
+			3: Always send report and include .log and .lst files
+			4: Always send report and include .log amd .lst files and include used config file.
+		mailtype	[html/plain/()] 
+			html	Send mail with nice html formatted report.
+			plain	Send mail with simple text report.
+			()		Send mail in html and plaintext using multipart.
+
+9.6 The [backup] sections
+
+	BLOCK
+	[blockname]
+	name = Descrition for reports and logging
+	type = [ local | exec | firebird | part | tape | samba | rsync | optical | sysinfo ]
+		local : copy from one directory to other
+		exec : execute command
+		firebird : make backup with gbak for database of firebird
+		part : mount partition and use as destination
+		tape : copy to tape with tar
+		samba : copy to samba share
+		rsync : copy to rsyncd server
+		optical : for future use. copy to CD-R,CD-RW,DVD-R,DVD-RW
+		sysinfo : for future use. recolect system information and send in report
+	
+	sourcelist = path for source files, for type=exec this is the working directory
+	excludelist = files to exlude con pattern matching
+		Multiple sourcelist and excludelist entries may be specified, this is equal to a comma seperated list.
+	dest = destination for copy
+	maxsize = maximum size allowed on destination, will not copy if sources size is bigger then this number and flag error
+		If not defined, will only calculate the size to be copied, set to -1 if you do not want to calculate this.
+	cmd = command to execute for type=exec sections
+	medium = [ CD | CD-RW | DVD | DVD-RW ]
+	user = username for services authentification
+	pass = password for services authentification
+	histdirs = history directories, -1 -> new dir for every copy, x -> create x directories.
+	options = options to pass to command called, use defaults if none given.
+		rsync section default options: --recursive --verbose --rsh=ssh --delete-after --modify-window=3 --times --stats --devices --specials --times --perms --owner --group --links
+	cypher = [yes/no] Experimental! yes to encrypt files
+	cert = cert.file used for encryption
+	eject = [yes/no] Eject medium after backup, if supported.
+	
+	... This needs more work
