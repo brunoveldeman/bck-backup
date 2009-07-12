@@ -3,7 +3,7 @@
 #
 [global]
 lang=English
-client=Test 1
+client=Test
 sysloglevel=2
 winmsg=no
 mt=/bin/mt
@@ -99,93 +99,3 @@ serverauth=server password
 #cliente2@sudominio.com = 4,plain
 #Multipart html and plain
 #yourmail@your.server.tld=4
-#
-#Exec section
-#[exec]
-#name = Exec test
-#type = exec
-#sourcelist = /home/copia/Desktop
-#cmd = ls -lahR
-#
-#Firebird database backup section
-#[firebird]
-#name = Gbak de base de datos de SG2
-#type = firebird
-#cmd = /opt/firebird/bin/gbak
-#options = -B -V -L -T -USER SYSDBA -PASSWORD masterkey
-#sourcelist = /home/sg2/database.fdb
-#dest = /home/sys/backupsg2/
-#
-#Seccion DAT
-[dat]
-name=Dat test
-type=tape
-sourcelist=/home/data/bck-backup/trunk,/home/data/bck-backup/stable
-sourcelist=/etc/bck
-excludelist=*.ext1,*.EXT1,*.ext2,*.EXT2
-excludelist=*.tmp,*.TMP
-dest=/var/temp/tar.test
-maxsize=20000000000
-eject=no
-#
-#Seccion Samba
-#[samba]
-#name = Copia en destino Samba
-#type = samba
-#sourcelist = /mydir,/mydir2
-#excludelist = *.ext1,*.EXT1,*.ext2,*.EXT2
-#dest = //sambaserver/sambashare
-#maxsize = 20000000000
-#user = username
-#pass = userpassword
-#histdirs=5
-#
-#Seccion de copia local
-[local]
-name=Local copy test
-type=local
-sourcelist=/home/data/bck-backup/trunk,/home/data/bck-backup/working
-excludelist=*.ext1,*.EXT1,*.ext2,*.EXT2
-dest=/var/temp
-maxsize=10000000
-histdirs=5
-
-#
-#Seccion de copia en particion (USB o lo que sea)
-#[part]
-#name = Copia en disco USB
-#type = part
-#sourcelist = /mydir,/mydir2
-#sourcelist = /moredirs
-#excludelist = *.ext1,*.EXT1,*.ext2,*.EXT2
-#dest = /dev/sda1
-#maxsize = 50000000000
-#
-#Seccion de copia de CD[RW] o DVD[RW], RW formatea el medio primero
-[cdrw]
-name=Copia en CD-RW
-type=optical
-dest=/dev/hdc
-medium=CDRW
-sourcelist=/home/data
-
-#excludelist = *.ext1,*.EXT1,*.ext2,*.EXT2
-#maxsize = 4500000000
-#Seccion de copia de CD[RW] o DVD[RW], RW formatea el medio primero
-[dvdrw]
-name=Copia en DVD-RW
-type=optical
-dest=/dev/hdc
-medium=DVDRW
-sourcelist=/home/data
-#excludelist = *.ext1,*.EXT1,*.ext2,*.EXT2
-maxsize=4500000000
-
-#Seccion de cipher
-[cipher]
-name=Localy cipher
-type=cipher
-sourcelist=/home/data
-#excludelist = *.ext1,*.EXT1,*.ext2,*.EXT2
-dest=/var/tmp/ciphered
-maxsize=1000000000
