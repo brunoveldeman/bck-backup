@@ -70,13 +70,13 @@ if ( $cmdln->GetHttpFlag )
 	$web->Start( $cmdln->GetHttpFlag );
 	exit(0);
 };
-if ( $cmdln->GetReportFlag )
-{
-	CommReports();
-};
 if ( defined $cmdln->GetDo() )
 {
 	$state = &Main;
+};
+if ( $cmdln->GetReportFlag )
+{
+	CommReports();
 };
 if ( $cmdln->GetMailFlag )
 {
@@ -99,9 +99,19 @@ sub Main # () -> ()
 	my ( @logfiles );
 	my ( @filelist );
 	my ( $globalstatus ) = 0;
-	if ( -e $cmdln->GetConfigFileName )
+	my ( $configfilename ) = $cmdln->GetConfigFileName;
+	if ( -e $configfilename )
 	{
-		$cfg = Config::IniFiles->new( -file => $cmdln->GetConfigFileName );
+		my ( $cfg, $mastercfg );
+		if ( -r "/etc/bck/bck.default" )
+		{
+			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+			  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+		}
+		else
+		{
+			$cfg 	= Config::IniFiles->new( -file => $configfilename );
+		};
 	};
 	if ( defined $cfg)
 	{
@@ -179,9 +189,19 @@ sub MailReports
 	my ( $logdate ) = GetLogDate();
 	my $starttime = time();
 	$publicip = &GetIP( $gsection->GetIpWebAddress() );
-	if ( -e $cmdln->GetConfigFileName() )
+	my ( $configfilename ) = $cmdln->GetConfigFileName;
+	if ( -e $configfilename )
 	{
-		$cfg = Config::IniFiles->new( -file => $cmdln->GetConfigFileName() );
+		my ( $cfg, $mastercfg );
+		if ( -r "/etc/bck/bck.default" )
+		{
+			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+			  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+		}
+		else
+		{
+			$cfg 	= Config::IniFiles->new( -file => $configfilename );
+		};
 	};
 	if ( defined $cfg)
 	{
@@ -263,9 +283,19 @@ sub CommReports # () -> ()
 	my $starttime = time();
 	my ( $rsection ) = ReportSection->new();
 	$publicip = &GetIP( $gsection->GetIpWebAddress() );
-	if ( -e $cmdln->GetConfigFileName() )
+	my ( $configfilename ) = $cmdln->GetConfigFileName;
+	if ( -e $configfilename )
 	{
-		$cfg = Config::IniFiles->new( -file => $cmdln->GetConfigFileName() );
+		my ( $cfg, $mastercfg );
+		if ( -r "/etc/bck/bck.default" )
+		{
+			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+			  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+		}
+		else
+		{
+			$cfg 	= Config::IniFiles->new( -file => $configfilename );
+		};
 	};
 	if ( defined $cfg)
 	{
@@ -629,19 +659,28 @@ sub GetLogDate # () -> (mydate)
 sub CheckConfig # ($configfilename) -> ()
 {
 	use File::Path;
-	my ( $configfile ) = @_;
+	my ( $configfilename ) = @_;
 	my ( $line, $testmail );
 	$testmail = 0;
 	use Socket;
 	use MIME::Base64;
 	print "bck version : $version\n";
 	print "   Checking configuration file...\n";
-	if (-r $configfile )
+	if (-r $configfilename )
 	{
-		my $cfg = Config::IniFiles->new( -file => $configfile );
+		my ( $cfg, $mastercfg );
+		if ( -r "/etc/bck/bck.default" )
+		{
+			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+			  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+		}
+		else
+		{
+			$cfg 	= Config::IniFiles->new( -file => $configfilename );
+		};
 		unless ($cfg)
 		{
-			print "   Error in loading configuration file `$configfile'\n";
+			print "   Error in loading configuration file `$configfilename'\n";
 			foreach $line ( @Config::IniFiles::errors )
 			{
 			print "	  $line .\n";
@@ -1262,9 +1301,19 @@ sub Update # (configfile) -> ()
 	$path = $Bin;
 	$name = $Script;
 	print "Preparing to update bck-backup version $version...\n";
-	if ( -e $cmdln->GetConfigFileName )
+	my ( $configfilename ) = $cmdln->GetConfigFileName;
+	if ( -e $configfilename )
 	{
-		$cfg = Config::IniFiles->new( -file => $cmdln->GetConfigFileName );
+		my ( $cfg, $mastercfg );
+		if ( -r "/etc/bck/bck.default" )
+		{
+			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+			  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+		}
+		else
+		{
+			$cfg 	= Config::IniFiles->new( -file => $configfilename );
+		};
 	};
 	if ( defined $cfg)
 	{
@@ -1886,7 +1935,20 @@ sub HtmlMain # () -> ()
 			$id = ::NumCl( $id );
 			my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( $timestamp );
 			my ( $date ) =  sprintf( "%02d/%02d/%02d %02d:%02d", $mday, ( $mon + 1 ), ( $year + 1900 ), $hour, $min );
-			$self->AddHtml ( "<tr>\n" . "<td class=\"lines\"><a class=\"line\" href=\"/detail/$id\">[$section] $name</a>\n" . "</td>\n" );
+			$self->AddHtml ( "<tr " );
+			if ( $statusbits & 4 )
+			{
+				$self->AddHtml( "class=\"header\"" );
+			}
+			elsif ( $statusbits & 128 )
+			{
+				$self->AddHtml( "class=\"remote\"" );
+			}
+			else
+			{
+				$self->AddHtml( "class=\"local\"" );
+			};
+			$self->AddHtml ( ">\n" . "<td class=\"lines\"><a class=\"line\" href=\"/detail/$id\">[$section] $name</a>\n" . "</td>\n" );
 			$self->AddHtml ( "<td class=\"lines\">$date\n" . "</td>\n" );
 			$self->AddHtml ( "<td class=\"blue\">\n" );
 			if ( $destsize ne 0 )
@@ -2103,31 +2165,44 @@ sub HtmlLogs # () -> ()
 			{
 				chomp( $line );
 				$line = ::StrCl( $line );
-				my ( $statusbits, $section, $name, $timestamp, $status, $size, $destsize, $destfree,$id ) = split( /,/,$line );
-				if ( !defined $statusbits ) { $statusbits = 24 };
-				if ( !defined $section ) { $section = " " };
-				if ( !defined $name ) { $name = " " };
-				if ( !defined $timestamp ) { $timestamp = 0 };
-				if ( !defined $status ) { $status = "" };
+				my ( $statusbits, $section, $name, $timestamp, $statustext, $size, $destsize, $destfree,$id ) = split( /,/,$line );
+				$statusbits = ::NumCl( $statusbits );
+				$section = ::StrCl( $section );
+				$name = ::StrCl( $name );
+				$timestamp = ::NumCl( $timestamp );
+				$statustext = ::StrCl( $statustext );
 				$size = ::NumCl( $size );
 				$destsize = ::NumCl( $destsize );
 				$destfree = ::NumCl( $destfree );
+				$id = ::NumCl( $id );
 				my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime( $timestamp );
 				my ($date ) = $mday . "/" . ( $mon + 1 ) . "/" . ( $year + 1900 ) . " " . sprintf( "%02d:%02d" , $hour, $min );
-				$self->AddHtml( "<tr>\n" . "<td class=\"col\">\r\n" );
-				
+				$self->AddHtml ( "<tr " );
+				if ( $statusbits & 4 )
+				{
+					$self->AddHtml( "class=\"header\"" );
+				}
+				elsif ( $statusbits & 128 )
+				{
+					$self->AddHtml( "class=\"remote\"" );
+				}
+				else
+				{
+					$self->AddHtml( "class=\"local\"" );
+				};
+				$self->AddHtml ( ">\n" . "<td class=\"col\">\r\n" );
+				$self->AddHtml( "<form class=\"left\" action=\"logs\" method=\"POST\" >\n" );
+				$self->AddHtml( "<label>[$section] $name </label>" );
 				if ( -e $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".log" )
 				{
-					$self->AddHtml( "<form class=\"right\" action=\"logs\" method=\"POST\" >\n" );
 					if ( -e $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".lst" )
 					{
 						$self->AddHtml( '<input class="button" type="Submit" value="Show file list" name="group">' . "\r\n" );
 					};
 					$self->AddHtml( '<input class="button" type="Submit" value="Show log file" name="group">' . "\r\n" );
 					$self->AddHtml( '<input type="hidden" name="file" value="' .  "$section.$timestamp" . '" size="20">' . "\r\n" );
-					$self->AddHtml( "</form>" );
 				}
-				$self->AddHtml( "[$section] $name" );
+				$self->AddHtml( "</form>" );
 				$self->AddHtml( "</td>\n" );
 				$self->AddHtml( "<td class=\"lines\">$date\n" . "</td>\n" );
 				if ( -e $gsection->GetLogDir() . "/"  . $section . "." . $timestamp . ".log" )
@@ -2213,7 +2288,16 @@ sub HtmlConfig # () -> ()
 	$self->AddHtml( "<br><b>Config file:</b><br><br>" );
 	if ( -e $self->{_configfile} )
 	{
-		my $cfg = Config::IniFiles->new( -file => $self->{_configfile} );
+		my ( $cfg, $mastercfg );
+		if ( -r "/etc/bck/bck.default" )
+		{
+			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+			  $cfg = Config::IniFiles->new( -file => $self->{_configfile}, -import => $mastercfg );
+		}
+		else
+		{
+			$cfg 	= Config::IniFiles->new( -file => $self->{_configfile} );
+		};
 		foreach my $section ( $cfg->Sections)
 		{
 			$self->AddHtml( "<hr>" );
@@ -2223,6 +2307,7 @@ sub HtmlConfig # () -> ()
 			foreach $var ( @values )
 			{
 				$val = $cfg->val($section, $var);
+				$val =~ s/\n/\,/g;
 				$val =~ s/\</&lt;/g;
 				$val =~ s/\>/&gt;/g;
 				$val =~ s/\"/&quot;/g;
@@ -2269,7 +2354,16 @@ sub HtmlEditsection # () -> ()
 	$self->AddHtml( '<br>Editing section <b>' . $section . ':</b>' . "\r\n" . '<br><br>' );
 	if (-r $self->{_configfile} )
 	{
-		my $cfg = Config::IniFiles->new( -file => $self->{_configfile} );
+		my ( $cfg, $mastercfg );
+		if ( -r "/etc/bck/bck.default" )
+		{
+			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+			  $cfg = Config::IniFiles->new( -file => $self->{_configfile}, -import => $mastercfg );
+		}
+		else
+		{
+			$cfg 	= Config::IniFiles->new( -file => $self->{_configfile} );
+		};
 		$self->AddHtml( "<b>[" . $section . "]</b>" );
 		my @values = $cfg->Parameters($section);
 		$self->AddHtml( '<form action="writeconfig" method="POST"><input type="hidden" name="section" value="' .  "$section" . '" size="20">' . "\r\n" );
@@ -2277,6 +2371,7 @@ sub HtmlEditsection # () -> ()
 		foreach $var (@values)
 		{
 			$val = $cfg->val($section, $var);
+			$val =~ s/\n/\,/g;
 			$val =~ s/\</&lt;/g;
 			$val =~ s/\>/&gt;/g;
 			$val =~ s/\"/&quot;/g;
@@ -2341,7 +2436,16 @@ sub HtmlWriteconfig # () -> ()
 	{
 		if ( defined $self->{_postdata}->{"ok"} )
 		{
-			my $cfg = Config::IniFiles->new( -file => $self->{_configfile} );
+			my ( $cfg, $mastercfg );
+			if ( -r "/etc/bck/bck.default" )
+			{
+				  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+				  $cfg = Config::IniFiles->new( -file => $self->{_configfile}, -import => $mastercfg );
+			}
+			else
+			{
+				$cfg 	= Config::IniFiles->new( -file => $self->{_configfile} );
+			};
 			$self->AddHtml( "<b>[" . $section . "]</b>" );
 			my @values = $cfg->Parameters($section);
 			$self->AddHtml( '<table border="1">' . "\r\n" );
@@ -2352,7 +2456,7 @@ sub HtmlWriteconfig # () -> ()
 			foreach $var (@values)
 			{
 				$val = $cfg->val($section, $var);
-				#$cfg->setval($section, $var, $cfg->val($section, $val) );
+				$val =~ s/\n/\,/g;
 				$val =~ s/\</&lt;/g;
 				$val =~ s/\>/&gt;/g;
 				$val =~ s/\"/&quot;/g;
@@ -2376,7 +2480,16 @@ sub HtmlWriteconfig # () -> ()
 		{
 			$var = $self->{_postdata}->{'newvar'};
 			$val = $self->{_postdata}->{'newval'};
-			my $cfg = Config::IniFiles->new( -file => $self->{_configfile} );
+			my ( $cfg, $mastercfg );
+			if ( -r "/etc/bck/bck.default" )
+			{
+				  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+				  $cfg = Config::IniFiles->new( -file => $self->{_configfile}, -import => $mastercfg );
+			}
+			else
+			{
+				$cfg 	= Config::IniFiles->new( -file => $self->{_configfile} );
+			};
 			$cfg->newval($section, $var, $val );
 			$self->AddHtml( "<b>[" . $section . "]</b>" );
 			my @values = $cfg->Parameters($section);
@@ -2384,7 +2497,7 @@ sub HtmlWriteconfig # () -> ()
 			foreach $var (@values)
 			{
 				$val = $cfg->val($section, $var);
-				#$cfg->setval($section, $var, $cfg->val($section, $val) );
+				$val =~ s/\n/\,/g;
 				$val =~ s/\</&lt;/g;
 				$val =~ s/\>/&gt;/g;
 				$val =~ s/\"/&quot;/g;
@@ -2408,7 +2521,16 @@ sub HtmlWriteconfig # () -> ()
 		{
 			my ( $dummy );
 			( $dummy, $var ) = split( /\s/, $self->{_postdata}->{'del'} );
-			my $cfg = Config::IniFiles->new( -file => $self->{_configfile} );
+			my ( $cfg, $mastercfg );
+			if ( -r "/etc/bck/bck.default" )
+			{
+				  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+				  $cfg = Config::IniFiles->new( -file => $self->{_configfile}, -import => $mastercfg );
+			}
+			else
+			{
+				$cfg 	= Config::IniFiles->new( -file => $self->{_configfile} );
+			};
 			$cfg->delval($section, $var );
 			$self->AddHtml( "<b>[" . $section . "]</b>" );
 			my @values = $cfg->Parameters($section);
@@ -2416,7 +2538,7 @@ sub HtmlWriteconfig # () -> ()
 			foreach $var (@values)
 			{
 				$val = $cfg->val($section, $var);
-				#$cfg->setval($section, $var, $cfg->val($section, $val) );
+				$val =~ s/\n/\,/g;
 				$val =~ s/\</&lt;/g;
 				$val =~ s/\>/&gt;/g;
 				$val =~ s/\"/&quot;/g;
@@ -2571,14 +2693,11 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( 'width: 100%;' );
 	$self->AddHtml( 'border-width: 2px;' );
 	$self->AddHtml( 'border-color: #000000;' );
-	$self->AddHtml( 'border-style: solid;' );
 	$self->AddHtml( 'border-collapse: collapse;' );
 	$self->AddHtml( 'text-align: left;' );
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( 'th.buttons {' );
 	$self->AddHtml( 'border-width: 0px;' );
-	$self->AddHtml( 'border-color: #000000;' );
-	$self->AddHtml( 'border-style: solid;' );
 	$self->AddHtml( 'display:  block;' );
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( 'input.button {' );
@@ -2589,7 +2708,7 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( 'text-align: center;' );
 	$self->AddHtml( 'padding: 0px;' );
 	$self->AddHtml( 'margin: 0px;' );
-	$self->AddHtml( 'height: 22px;' );
+	$self->AddHtml( 'height: 23px;' );
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( 'th.lines {' );
 	$self->AddHtml( 'border-width: 2px;' );
@@ -2597,6 +2716,7 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( 'border-style: solid;' );
 	$self->AddHtml( 'background: #707070;' );
 	$self->AddHtml( 'text-align: center;' );
+	$self->AddHtml( 'font-size: 1em;' );
 	$self->AddHtml( 'padding: 2px;' );
 	$self->AddHtml( 'margin: 2px;' );
 	$self->AddHtml( '}' . "\r\n" );
@@ -2613,11 +2733,10 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( 'td.lines {' );
 	$self->AddHtml( 'border-width: 1px;' );
-	$self->AddHtml( 'background: #AEAEAE;' );
 	$self->AddHtml( 'border-color: #000000;' );
 	$self->AddHtml( 'border-style: solid;' );
 	$self->AddHtml( 'text-align: center;' );
-	$self->AddHtml( 'height: 27px;' );
+	$self->AddHtml( 'height: 28px;' );
 	$self->AddHtml( 'overflow: hidden;' );
 	$self->AddHtml( 'padding: 2px;' );
 	$self->AddHtml( 'margin: 2px;' );
@@ -2625,39 +2744,23 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( 'td.col {' );
 	$self->AddHtml( 'border-width: 1px;' );
-	$self->AddHtml( 'background: #AEAEAE;' );
 	$self->AddHtml( 'border-color: #000000;' );
 	$self->AddHtml( 'border-style: solid;' );
-	$self->AddHtml( 'text-indent: 10px;' );
-	$self->AddHtml( 'height: 27px;' );
-	$self->AddHtml( 'padding: 0px;' );
+	$self->AddHtml( 'text-indent: 5px;' );
+	$self->AddHtml( 'height: 28px;' );
+	$self->AddHtml( 'padding: 2px;' );
 	$self->AddHtml( 'margin: 2px;' );
 	$self->AddHtml( 'vertical-align: middle;' );
 	$self->AddHtml( 'border-collapse: collapse;' );
 	$self->AddHtml( '}' . "\r\n" );
-	$self->AddHtml( 'td.header {' );
-	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'tr.header {' );
 	$self->AddHtml( 'background: #F4FA58;' );
-	$self->AddHtml( 'border-color: #000000;' );
-	$self->AddHtml( 'border-style: solid;' );
-	$self->AddHtml( 'text-align: center;' );
-	$self->AddHtml( 'height: 27px;' );
-	$self->AddHtml( 'overflow: hidden;' );
-	$self->AddHtml( 'padding: 2px;' );
-	$self->AddHtml( 'margin: 2px;' );
-	$self->AddHtml( 'vertical-align: middle;' );
 	$self->AddHtml( '}' . "\r\n" );
-	$self->AddHtml( 'td.remote {' );
-	$self->AddHtml( 'border-width: 1px;' );
+	$self->AddHtml( 'tr.local {' );
+	$self->AddHtml( 'background: #AEAEAE;' );
+	$self->AddHtml( '}' . "\r\n" );
+	$self->AddHtml( 'tr.remote {' );
 	$self->AddHtml( 'background: #58FAF4;' );
-	$self->AddHtml( 'border-color: #000000;' );
-	$self->AddHtml( 'border-style: solid;' );
-	$self->AddHtml( 'text-align: center;' );
-	$self->AddHtml( 'height: 27px;' );
-	$self->AddHtml( 'overflow: hidden;' );
-	$self->AddHtml( 'padding: 2px;' );
-	$self->AddHtml( 'margin: 2px;' );
-	$self->AddHtml( 'vertical-align: middle;' );
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( 'td.green {' );
 	$self->AddHtml( 'border-width: 1px;' );
@@ -2708,12 +2811,12 @@ sub HtmlBodyTop # () -> ()
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( 'form.left{' );
 	$self->AddHtml( 'float: left;' );
-	$self->AddHtml( 'padding: 1px 15px 1px 15px;' );
+	$self->AddHtml( 'padding: 1px 1px 1px 1px;' );
 	$self->AddHtml( 'margin: 0px 0px 0px 0px;' );
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( 'form.right{' );
 	$self->AddHtml( 'float: right;' );
-	$self->AddHtml( 'padding: 1px 15px 1px 15px;' );
+	$self->AddHtml( 'padding: 1px 1px 1px 1px;' );
 	$self->AddHtml( 'margin: 0px 0px 0px 0px;' );
 	$self->AddHtml( '}' . "\r\n" );
 	$self->AddHtml( '-->' . "\r\n" );
@@ -3024,15 +3127,23 @@ sub ParseCommandLine{ # () -> (ok)
 package GlobalSection;
 sub new
 {
-	my ($class) = shift;
-	my ($configfilename) =  $cmdln->GetConfigFileName();
-	my ($lang,$client,$sysloglevel,$winmsg,$mt,$tar,$smbmount,$smbumount,$smbclient,
-		$sudo,$rsync,$dvdrecord,$dvdformat,$cdrecord,$rsyncrypto,
-		$ntpserver,$ipwebaddress,$logdir,$spooldir,$tempdir,
-		$oktag, $errortag, $warningtag );
+	my ( $class ) = shift;
+	my ( $configfilename)  =  $cmdln->GetConfigFileName();
+	my ( $lang, $client, $sysloglevel, $winmsg, $mt, $tar, $smbmount, $smbumount, $smbclient );
+	my ( $sudo, $rsync, $dvdrecord, $dvdformat, $cdrecord, $rsyncrypto, $ntpserver,$ipwebaddress );
+	my ( $logdir,$spooldir,$tempdir, $oktag, $errortag, $warningtag );
 	if (-r $configfilename )
 	{
-		my $cfg 	= Config::IniFiles->new( -file => $configfilename );
+		my ( $cfg, $mastercfg );
+		if ( -r "/etc/bck/bck.default" )
+		{
+			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+			  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+		}
+		else
+		{
+			$cfg 	= Config::IniFiles->new( -file => $configfilename );
+		};
 		unless ($cfg)
 		{
 			die "Error in loading configuration file `$configfilename'\n Use --check option for detailed information\n";
@@ -3244,7 +3355,16 @@ sub new
 	my ($user, $password, $reportlines, $backupuser, $backuppass);
 	if (-r $configfilename )
 	{
-		my $cfg 	= Config::IniFiles->new( -file => $configfilename );
+		my ( $cfg, $mastercfg );
+		if ( -r "/etc/bck/bck.default" )
+		{
+			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+			  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+		}
+		else
+		{
+			$cfg 	= Config::IniFiles->new( -file => $configfilename );
+		};
 		unless ($cfg)
 		{
 			die "Error in loading configuration file `$configfilename'\n Use --check option for detailed information\n";
@@ -3312,7 +3432,16 @@ sub new
 	my ($server, $port, $password, $serverauth);
 	if (-r $configfilename )
 	{
-		my $cfg 	= Config::IniFiles->new( -file => $configfilename );
+		my ( $cfg, $mastercfg );
+		if ( -r "/etc/bck/bck.default" )
+		{
+			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+			  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+		}
+		else
+		{
+			$cfg 	= Config::IniFiles->new( -file => $configfilename );
+		};
 		unless ($cfg)
 		{
 			die "Error in loading configuration file `$configfilename'\n Use --check option for detailed information\n";
@@ -3584,7 +3713,7 @@ sub FindLines # ( $bit, $bitvalue ) -> ( @lines )
 		$line = ::StrCl( $line );
 		my ( $statusbits, $section, $name, $timestamp, $statustext, $size, $destsize, $destfree ) = split( /,/,$line );
 		# Validate the values read
-		$statusbits = ::StrCl( $statusbits );
+		$statusbits = ::NumCl( $statusbits );
 		$section = ::StrCl( $section );
 		$name = ::StrCl( $name );
 		$timestamp = ::NumCl( $timestamp );
@@ -3877,7 +4006,7 @@ sub new
 		_html		=> "0",
 		_histdirs	=> undef,
 		_eject		=> undef,
-		_bwlimit	=> undef,
+		_options	=> undef,
 		_cypher		=> undef,
 		_cert		=> undef,
 		_destsize	=> 0,
@@ -3891,7 +4020,16 @@ sub LoadSection
 {
 	my ( $self ) = shift;
 	my ( $configfilename ) = @_;
-	my $cfg = Config::IniFiles->new( -file => $configfilename );
+	my ( $cfg, $mastercfg );
+	if ( -r "/etc/bck/bck.default" )
+	{
+		  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+		  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+	}
+	else
+	{
+		$cfg 	= Config::IniFiles->new( -file => $configfilename );
+	};
 	if ($cfg->SectionExists ( $self->{_section} ) )
 	{
 		$self->{_name}		= $cfg->val($self->{_section}, 'name');
@@ -3908,7 +4046,7 @@ sub LoadSection
 		$self->{_eject}  	= $cfg->val($self->{_section}, 'eject');
 		$self->{_cypher}  	= $cfg->val($self->{_section}, 'cypher');
 		$self->{_cert}  	= $cfg->val($self->{_section}, 'cert');
-		$self->{_bwlimit}	= $cfg->val($self->{_section}, 'bwlimit');
+		$self->{_options}	= $cfg->val($self->{_section}, 'options');
 		if ( not ( defined $self->{_cypher} ) )
 		{
 			$self->{_cypher} = "no";
@@ -3990,11 +4128,11 @@ sub GetCypher
 	my ( $self ) = shift;
 	return $self->{_cypher};
 };
-#accessor method for bwlimit
-sub GetBwlimit
+#accessor method for options
+sub GetOptions
 {
 	my ( $self ) = shift;
-	return $self->{_bwlimit};
+	return $self->{_options};
 };
 #accessor method for name
 sub GetName
@@ -4219,6 +4357,7 @@ sub CalcSpaceleft
 		$cmd = 'df --block-size 1 ' . $dest;
 		$self->WriteLog( "Command : " . $cmd , 3 );
 		open (DATA, "$cmd 2>&1 |" ) or $status = 1;
+		$self->WriteLog( "Command : " . $cmd , 3 );
 		if ( $status == 0 )
 		{
 	  		while ( defined ( my $line = <DATA> )  )
@@ -4746,114 +4885,102 @@ sub CypherLocal
 sub BackupRsync
 {
 	my ( $self ) = shift;
-	my ( $source, $bwlimit );
+	my ( $source, $options );
 	my ( $status ) = 0;
 	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
 	#loop sources
-	foreach $source (@sources)
+	foreach $source ( @sources )
 	{
-		#check if source exists
-		if ( -e $source )
+		#build excludelist string
+		my ( $excludelist ) = '';
+		if ( defined $self->{_excludelist} )
 		{
-			#build excludelist string
-			my ( $excludelist ) = '';
-			if ( defined $self->{_excludelist} )
+			my ( @excludes ) = split(/[,\n]/,$self->{_excludelist});
+			my ( $exclude );
+			foreach $exclude ( @excludes)
 			{
-				my (@excludes ) = split(/[,\n]/,$self->{_excludelist});
-				my ( $exclude );
-				foreach $exclude (@excludes)
-				{
-					$excludelist = $excludelist . ' --exclude=' . $exclude;
-				};
+				$excludelist = $excludelist . ' --exclude=' . $exclude;
 			};
-			#add bwlimit if defined
-			if ( defined $self->{_bwlimit} )
-			{
-				$bwlimit = '--bwlimit=' . $self->GetBwlimit() . ' ';
-			}
-			else
-			{
-				$bwlimit = '';
-			};
-			#end build excludelist string
-			my $cmd = 'rsync --recursive --verbose --rsh=ssh  --delete-after --modify-window=3 --times --stats --devices --specials --times --perms --owner --group --links ' . $bwlimit . $excludelist . ' "' . $source . '" ' . $self->{_dest} . '/' . $self->{_section} . '/';
-			open (DATA, "$cmd 2>&1 |" ) or $status = 1;
-			$self->WriteLog( "Command : " . $cmd , 3 );
-			#read stdin
-			if ( $status == 0 )
-			{
-				my ( $flag ) = 0;
-				while ( defined ( my $line = <DATA> )  )
-				{
-							if ( $line =~ m/total size is/ )
-							{
-								$line =~ m/(\d+)/;
-								my ( $num ) = $1;
-								if ( $self->{_maxsize} < 0 )
-								{
-									$self->{_size} += $num;
-								}
-							}
-					chomp($line);
-					if ( $line eq "")
-					{
-						$flag = 0;
-					};
-					if ( $flag eq 1 )
-					{
-			if ( $line =~ m/rsync:/ )
-			{
-							$self->WriteLog( $line , 3 );
-			}
-			else
-			{
-							$self->WriteList( $line );
-			};
-					}
-					else
-					{
-						$self->WriteLog( $line , 3 );
-					};
-					if ( $line =~/file list/ )
-					{
-						$flag = 1;
-					};
-				};
-				close DATA;
-				$status = $? >> 8;
-			};
-			#end read stdin
-			$self->{_status} += $status;
-			#check exit status
-			if ( $status != 0 )
-			{
-				if ( $status == 23 )
-				{
-					$self->{_warning} = 1;
-					$self->WriteLog( "Some files could not be copied. " , 1 );
-				}
-				elsif ( $status == 24 )
-				{
-					$self->{_warning} = 1;
-					$self->WriteLog( "Some files vanished before copying. " , 1 );
-				}
-				else
-				{
-					$self->{_error} = 1;
-					$self->WriteLog( "Not copied " , 1 );
-				};
-			};
-			#end check exit status
-			$self->WriteLog( "Exit status : " . $status , 2 );
+		};
+		#end build excludelist string
+		#add options if defined
+		if ( defined $self->{_options} )
+		{
+			$options =  $self->GetOptions() . ' ';
 		}
 		else
 		{
-			$self->{_status} = 1;
-			$self->{_error} = 1;
-			$self->WriteLog( " Source " . $source . " does not exist." , 0 );
-			$status = 3;
+			$options = '--recursive --verbose --rsh=ssh  --delete-after --modify-window=3 --times --stats --devices --specials --times --perms --owner --group --links';
 		};
-		#end check if source exists
+		my $cmd = 'rsync ' . $options . ' ' .  $excludelist . ' "' . $source . '" ' . $self->{_dest} . '/' . $self->{_section} . '/';
+		open ( DATA, "$cmd 2>&1 |" ) or $status = 1;
+		$self->WriteLog( "Command : " . $cmd , 3 );
+		#read stdin
+		if ( $status == 0 )
+		{
+			my ( $flag ) = 0;
+			while ( defined ( my $line = <DATA> )  )
+			{
+						if ( $line =~ m/total size is/ )
+						{
+							$line =~ m/(\d+)/;
+							my ( $num ) = $1;
+							if ( $self->{_maxsize} < 0 )
+							{
+								$self->{_size} += $num;
+							}
+						}
+				chomp( $line );
+				if ( $line eq "")
+				{
+					$flag = 0;
+				};
+				if ( $flag eq 1 )
+				{
+		if ( $line =~ m/rsync:/ )
+		{
+						$self->WriteLog( $line , 3 );
+		}
+		else
+		{
+						$self->WriteList( $line );
+		};
+				}
+				else
+				{
+					$self->WriteLog( $line , 3 );
+				};
+				if ( $line =~/file list/ )
+				{
+					$flag = 1;
+				};
+			};
+			close DATA;
+			$status = $? >> 8;
+		};
+		#end read stdin
+		$self->{_status} += $status;
+		#check exit status
+		if ( $status != 0 )
+		{
+			if ( $status == 23 )
+			{
+				$self->{_warning} = 1;
+				$self->WriteLog( "Some files could not be copied. " , 1 );
+			}
+			elsif ( $status == 24 )
+			{
+				$self->{_warning} = 1;
+				$self->WriteLog( "Some files vanished before copying. " , 1 );
+			}
+			else
+			{
+				$self->{_error} = 1;
+				$self->WriteLog( "Not copied " , 1 );
+			};
+		};
+		#end check exit status
+		$self->WriteLog( "Exit status : " . $status , 2 );
 	};
 	#end loop sources
 	#check status
@@ -4867,7 +4994,7 @@ sub BackupRsync
 	};
 	#end check status
 	#$self->LabelDir( $self->{_dest} . '/' . $self->{_section} , $self->{_logdate} );
-	return ( $status );
+	return( $status );
 };
 #############################################################################
 sub BackupTape
@@ -4877,7 +5004,7 @@ sub BackupTape
 	my ( $sourcelist ) = '';
 	my ( $status ) = 0;
 	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
-	foreach $source (@sources)
+	foreach $source ( @sources )
 	{
 		if ( -e $source )
 		{
@@ -5005,7 +5132,7 @@ sub BackupTape
 		if ( $self->{_eject} eq "yes" )
 		{
 			my $cmd = "mt -f " . $self->{_dest} . " rewoffl";
-		$status = 0;
+			$status = 0;
 			open (DATA, "$cmd 2>&1 |" ) or $status = 1;
 			$self->WriteLog( "Command : " . $cmd , 3 );
 			if ( $status == 0 )
@@ -5246,7 +5373,7 @@ sub CypherTape
 		};
 		#read label from tape
 		my $cmd = 'tar --test-label --file ' . $self->{_dest};
-	$status = 0;
+		$status = 0;
 		open (DATA, "$cmd 2>&1 |" ) or $status = 1;
 		$self->WriteLog( "Command : " . $cmd , 3 );
 		if ( $status == 0 )
@@ -5260,7 +5387,7 @@ sub CypherTape
 			$status = $? >> 8;
 		};
 		$cmd = 'tar --create  --dereference --verbose --totals --label ' . $self->{_section} . $self->{_logdate} . ' --directory=' . $tmpdir2 . ' ' . $excludelist . ' --file ' . $self->{_dest} . ' ' . $self->{_section};
-	$status = 0;
+		$status = 0;
 		open (DATA, "$cmd 2>&1 |" ) or $status = 1;
 		$self->WriteLog( "Command : " . $cmd , 3 );
 		if ( $status == 0 )
@@ -5811,10 +5938,10 @@ sub BackupPart
 	return (0);
 };
 
-sub BackupSG2
+sub BackupFirebird
 {
 	my ( $self ) = shift;
-	my ( $source);
+	my ( $source, $options );
 	my ( $status ) = 0;
 	my ( @sources ) = split(/[,\n]/,$self->{_sourcelist} );
 	$self->CalcSpaceleft( $self->{_dest} );
@@ -5842,9 +5969,17 @@ sub BackupSG2
 	};
 	$source = shift(@sources);
 	#check if source exist
+	if ( defined $self->{_options} )
+	{
+		$options =  $self->GetOptions() . ' ';
+	}
+	else
+	{
+		$options = '-B -V -L -T -USER SYSDBA -PASSWORD masterkey ';
+	};
 	if ( -e $source )
 	{
-		my $cmd = $self->{_cmd} . " " . $source . " " . $self->{_dest} . '/' . $self->{_section} . ".gbk";
+		my $cmd = $self->{_cmd} . " " . $options . $source . " " . $self->{_dest} . '/' . $self->{_section} . ".gbk";
 		open (DATA, "$cmd 2>&1 |" ) or $status = 1;
 		$self->WriteLog( "Command : " . $cmd , 3 );
 		if ( $status == 0 )
@@ -5875,6 +6010,7 @@ sub BackupSG2
 			$self->WriteLog( "One or more errors/warning." , 1 );
 			$self->{_error} = 1;
 		};
+		# We also copy the database file itself just to be sure
 		if ( copy( $source, $self->{_dest} . '/' . $self->{_section} . ".fdb" ) )
 		{
 			$self->WriteLog( "Database (fdb) copied." , 1 );
@@ -5995,10 +6131,10 @@ sub Backup
 	{
 		$self->BackupPart();
 	};
-	# sg2 section
-	if ( $self->{_type} eq 'sg2' )
+	# firebird section
+	if ( $self->{_type} eq 'firebird' )
 	{
-		$self->BackupSG2();
+		$self->BackupFirebird();
 	};
 	# rsync section
 	if ( $self->{_type} eq 'rsync' )
@@ -6384,7 +6520,17 @@ sub SendReports
 		$subject = "[" . $gsection->GetErrortag() . "] Backup report (" . $gsection->GetClient() . ")";
 	};
 	# Get mailtext from config file, if it points to a file, read it and get the text into $mailtext
-	my ( $cfg ) = Config::IniFiles->new( -file => $cmdln->GetConfigFileName );
+	my ( $cfg, $mastercfg );
+	my ( $configfilename ) = cmdln->GetConfigFileName();
+	if ( -r "/etc/bck/bck.default" )
+	{
+		  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+		  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+	}
+	else
+	{
+		$cfg 	= Config::IniFiles->new( -file => $configfilename );
+	};
 	my ( $mailtext ) = $cfg->val('global', 'mailtext');
 	if ( not defined $mailtext )
 	{
@@ -6451,7 +6597,7 @@ sub SendReports
 				{
 					$html .= "<div>\n";
 				};
-				$html .= $self->HumanBytes( $size );
+				$html .= ::HumanBytes( $size );
 				if ( $destsize ne 0 )
 				{
 					$html .= "&nbsp;(" . int( 100 - ($destfree / $destsize)*100) . "%)\n";
@@ -6513,7 +6659,16 @@ sub MailReport
 	my ( $rc );
 	my ( $tableentry );
 	my ( $configfilename ) =  $cmdln->GetConfigFileName();
-	my $cfg = Config::IniFiles->new( -file => $configfilename );
+	my ( $cfg, $mastercfg );
+	if ( -r "/etc/bck/bck.default" )
+	{
+		  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+		  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+	}
+	else
+	{
+		$cfg 	= Config::IniFiles->new( -file => $configfilename );
+	};
 	my ( $smtpserver ) = $cfg->val( 'global', 'smtpserver' );
 	my ( $smtpuser )	= $cfg->val( 'global', 'smtpuser' );
 	my ( $smtppass )	= $cfg->val( 'global', 'smtppass' );
@@ -6630,66 +6785,6 @@ sub MailReport
 		$rc = 0;
 	};
 	return( $rc );
-};
-###############################################################################
-sub HumanBytes
-{
-	my ( $self ) = shift;
-	my ( $bytes ) = @_;
-	my ( $output );
-	#byte	  B
-	#kilobyte  K = 2**10 B = 1024 B
-	#megabyte  M = 2**20 B = 1024 * 1024 B
-	#gigabyte  G = 2**30 B = 1024 * 1024 * 1024 B
-	#terabyte  T = 2**40 B = 1024 * 1024 * 1024 * 1024 B
-	#petabyte  P = 2**50 B = 1024 * 1024 * 1024 * 1024 * 1024 B
-	#exabyte   E = 2**60 B = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 B
-	#zettabyte Z = 2**70 B = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 B
-	#yottabyte Y = 2**80 B = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 B
-	if ( defined $bytes and ( $bytes != 0 ) )
-	{
-	if ( $bytes > ( 2 ** 80 ) )
-	{
-		$output = sprintf("%.2f YB",( $bytes / ( 2 ** 80 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 70) )
-	{
-		$output = sprintf("%.2f ZB",( $bytes / ( 2 ** 70 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 60) )
-	{
-		$output = sprintf("%.2f EB",( $bytes / ( 2 ** 60 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 50) )
-	{
-		$output = sprintf("%.2f PB",( $bytes / ( 2 ** 50 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 40) )
-	{
-		$output = sprintf("%.2f TB",( $bytes / ( 2 ** 40 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 30) )
-	{
-		$output = sprintf("%.2f GB",( $bytes / ( 2 ** 30 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 20) )
-	{
-		$output = sprintf("%.2f MB",( $bytes / ( 2 ** 20 ) ) );
-	}
-	elsif ( $bytes > ( 2 ** 10) )
-	{
-		$output = sprintf("%.2f KB",( $bytes / ( 2 ** 10 ) ) );
-	}
-	else
-	{
-		$output = sprintf("%.0f B",( $bytes ) );
-	};
-	}
-	else
-	{
-		$output = "-"
-	};
-	return( $output );
 };
 ##################################################################################
 # End Class Report
