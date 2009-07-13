@@ -1646,7 +1646,7 @@ sub Start # () -> ()
 				my ( $statusbits, $section, $name, $timestamp, $statustext, $size, $destsize, $destfree ) = split( /,/,$line );
 				if ( !defined $statusbits ) { $statusbits = 24 };
 				$section = ::StrCl( $section );
-				$section = ::StrCl( $name );
+				$name = ::StrCl( $name );
 				$timestamp = ::NumCl( $timestamp );
 				$statustext = ::StrCl( $statustext );
 				$size = ::NumCl( $size );

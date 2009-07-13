@@ -4,16 +4,16 @@
 
 1. Linux instalation.
     
-1.1 Install the following packages:
+1.1 Install the following packages/tools:
 
-	gnupg
-	mt-st
-	rsync
-	tar
-	cdrecord
-	dvd+rw-tools
-	perl
-	wget
+	mt-st		: for tape drive status and eject
+	tar			: to write to tapes
+	rsync		: to copy files
+	cdrecord	: to write cd's (not implemented)
+	dvd+rw-tools: to write dvd's (not implemented)
+	perl		: the perl language interpreter
+	wget		: used by selfupdater
+	rsyncrypto	: to do the cyphering (experimental)
     
 1.2 Download bck-backup.
 
@@ -33,11 +33,13 @@
 
 2.1 Program file.
 
-    Copy bck to /usr/local/sbin
+    Copy bck to /usr/local/sbin 
 	
 	#>cp bck /usr/local/sbin
     
-2.2 Config file(s).
+	If we copy the program file in a directory that is not in your PATH, we will have to run it by typing it's full path.
+	
+2.2 Configuration file(s).
 
     Create a directory called bck in /etc
 	
@@ -83,8 +85,17 @@
     To run the job from Monday to Friday on 23:30, add the following line
 
 	30 23 * * 1-5 /usr/local/sbin/bck --do=seccion1,seccion2
-    
-6. Web front-end
+   
+6. Server instalation
+
+	We can install bck-backup's server, web server and report server, no additional
+	software is needed.
+
+	In the examples we run bck-backup as root, replace "root" with the apropiate user
+	and give the user read access to the configuration files and read/write access
+	to the logdir and spooldir.
+	
+6.1 Web front-end
 
 	The standard port for bck.backup is 2311, but you can configure any port.
 
@@ -93,21 +104,21 @@
     Add a line to /etc/services
       > bck-backup		2311/tcp			# bck-backup web front-end
 	The port number "2311" is defined in this line, if you want to use another
-	port, change is here.
+	port, change it here.
       
     Add line to /etc/inetd.conf
       > bck-backup			stream	tcp		nowait  root    /usr/local/sbin/bck     /usr/local/sbin/bck --httpserver
 
     Restart the inetd server
-      > /etc/init.d/inetutils-inetd restart
+      #>/etc/init.d/inetutils-inetd restart
 
     To show de web-interface, point a browser to the servers ip address on port 2311
       > ex.: http://192.168.100.10:2311
       
-7. Report server
+6.2 Report server
 
     Install an inetd server if not already installed
-    
+    	
     Add a line to /etc/services
       > bck-backup-remote	2312/tcp			# bck-backup report server
       
@@ -115,9 +126,21 @@
       > bck-backup-remote	stream	tcp		nowait  root    /usr/local/sbin/bck     /usr/local/sbin/bck --reportserver
 
     Restart the inetd server
-      > /etc/init.d/inetutils-inetd restart
+      #>/etc/init.d/inetutils-inetd restart
 
-8. Running the Web front-end and the Report server on the same port
+	Configure your server's [report] section:
+	ex.:
+		[report]
+		serverpassword=mysecret
+	  
+	Configure your client's [report] section:
+	ex.:
+		[report]
+		server=192.168.200.10
+		port=2312
+		password=mysecret
+
+6.3 Running the Web front-end and the Report server on the same port
 
     The line in /etc/services
       > bck-backup		2311/tcp			# bck-backup web front-end and report server
@@ -126,8 +149,14 @@
       > bck-backup-remote	stream	tcp		nowait  root    /usr/local/sbin/bck     /usr/local/sbin/bck --httpserver --reportserver
 
     Restart the inetd server
-      > /etc/init.d/inetutils-inetd restart
+      #>/etc/init.d/inetutils-inetd restart
 
+7. Security
+
+	Running bck-backup as root might not be a good idea, 
+
+8. Sudo
+	  
 9. The configuration file
 
 9.1 The [global] section
@@ -178,8 +207,8 @@
 9.2 The [http] section
 
 	[http]
-	user=			[user]		Username for authentification on some pages in the web interface.
-	pass=			[password]	Password for authentification on some pages in the web interface.
+	user=			[user]		Username for authentification on some pages in the web interface, if left blank, access totaly denied.
+	pass=			[password]	Password for authentification on some pages in the web interface, if left blank, access totaly denied.
 	reportlines=	[num]		Number of report lines to show per page in the web interface.
 	
 9.3 The [update] section
@@ -195,7 +224,7 @@
 	server=			[hostname]	Hostname of report server.
 	port=			[portnr]	Portnumber of report server.
 	password=		[password]  Password to access server.
-	serverpassword=	[password]	Server password when running as report server.
+	serverpassword=	[password]	Server password when running as report server, if left blank, no reports will be accepted at all.
 	
 9.5	The [mail] section
 
