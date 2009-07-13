@@ -1619,7 +1619,6 @@ sub Start # () -> ()
 		# Get report access password.
 		my ( $rsection ) = ReportSection->new();
 		my ( $password ) = $rsection->GetServerPassword();
-
 		# Create password string for compare
 		my  ( $authstring ) = crypt( $password, $seed );
 		# Send the seed
@@ -1641,19 +1640,19 @@ sub Start # () -> ()
 		$auth = substr( $auth, 3 );
 		print "bck", $numreports - 2 ,"\n";
 		my ( $statusfile ) = $cmdln->GetStatusFileName;
-		if ( $authstring eq $auth )
+		if ( ( $authstring eq $auth ) and ( $password ne "" ) )
 		{
 			print "bck", $numreports - 2 ,"\n";
 			my ( $table ) = TableFile->new();
 			$table->SetFile( $gsection->GetSpoolDir() . '/' . "$statusfile" . '.tbl' );
 			foreach my $line ( @report )
 			{
-				my ( $statusbits, $section, $name, $timestamp, $stat, $size, $destsize, $destfree ) = split( /,/,$line );
+				my ( $statusbits, $section, $name, $timestamp, $statustext, $size, $destsize, $destfree ) = split( /,/,$line );
 				if ( !defined $statusbits ) { $statusbits = 24 };
-				if ( !defined $section ) { $section = " " };
-				if ( !defined $name ) { $name = " " };
-				if ( !defined $timestamp ) { $timestamp = 0 };
-				if ( !defined $stat ) { $stat = "" };
+				$section = ::StrCl( $section );
+				$section = ::StrCl( $name );
+				$timestamp = ::NumCl( $timestamp );
+				$statustext = ::StrCl( $statustext );
 				$size = ::NumCl( $size );
 				$destsize = ::NumCl( $destsize );
 				$destfree = ::NumCl( $destfree );
@@ -1661,7 +1660,7 @@ sub Start # () -> ()
 				$table->SetSection( $section );
 				$table->SetName( $name );
 				$table->SetTimeStamp( $timestamp );
-				$table->SetStatusText( $stat );
+				$table->SetStatusText( $statustext );
 				$table->SetSize( $size );
 				$table->SetDestSize( $destsize );
 				$table->SetDestFree( $destfree );
@@ -2276,7 +2275,7 @@ sub HtmlConfig # () -> ()
 	{
 		$self->ParsePostdata();
 	};
-	if ( defined ( $self->{_headerlist}->{"authorization"} ) )
+	if ( ( defined ( $self->{_headerlist}->{"authorization"} ) ) and ( $hsection->GetPassword() ne "" ) and ( $hsection->GetUser() ne "" ) )
 	{
 		return(0) unless( $self->{_headerlist}->{"authorization"} eq "Basic " . encode_base64( "$authstring","" ) )
 	}
@@ -2373,7 +2372,7 @@ sub HtmlEditsection # () -> ()
 		$self->ParsePostdata( );
 	};
 	$section = $self->{_postdata}->{"section"};
-	if ( defined ( $self->{_headerlist}->{"authorization"} ) )
+	if ( ( ( defined ( $self->{_headerlist}->{"authorization"} ) ) and ( $hsection->GetPassword() ne "" ) and ( $hsection->GetUser() ne "" ) ))
 	{
 		return( 0 ) unless( $self->{_headerlist}->{"authorization"} eq ("Basic " . encode_base64("$authstring","")) )
 	}
@@ -2445,7 +2444,7 @@ sub HtmlWriteconfig # () -> ()
 		$self->ParsePostdata();
 	};
 	$section = $self->{_postdata}->{"section"};
-	if ( defined ( $self->{_headerlist}->{"authorization"} ) )
+	if (( ( defined ( $self->{_headerlist}->{"authorization"} ) ) and ( $hsection->GetPassword() ne "" ) and ( $hsection->GetUser() ne "" ) ) )
 	{
 		if ( $self->{_headerlist}->{"authorization"} eq ("Basic " . encode_base64("$authstring","")) )
 		{
