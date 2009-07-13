@@ -28,7 +28,7 @@ use strict;
 use English;
 use Config;
 # Program version
-my( $version ) = "2.2.1";
+my( $version ) = "2.2.2";
 # Exit state variable
 my( $state ) = 0;
 # Evaluate the command line parameters
@@ -91,7 +91,7 @@ exit($state);
 ##################################################################################
 sub Main # () -> ()
 {
-	my ( $cfg ) = undef;
+	my ( $cfg, $mastercfg );
 	my ( $lang ) = undef;
 	my ( $publicip, $line );
 	my ( $logdate ) = GetLogDate();
@@ -102,7 +102,6 @@ sub Main # () -> ()
 	my ( $configfilename ) = $cmdln->GetConfigFileName;
 	if ( -e $configfilename )
 	{
-		my ( $cfg, $mastercfg );
 		if ( -r "/etc/bck/bck.default" )
 		{
 			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
@@ -183,7 +182,7 @@ sub Main # () -> ()
 ##################################################################################
 sub MailReports
 {
-	my ( $cfg ) = undef;
+	my ( $cfg, $mastercfg );
 	my ( $lang ) = undef;
 	my ( $publicip);
 	my ( $logdate ) = GetLogDate();
@@ -192,7 +191,6 @@ sub MailReports
 	my ( $configfilename ) = $cmdln->GetConfigFileName;
 	if ( -e $configfilename )
 	{
-		my ( $cfg, $mastercfg );
 		if ( -r "/etc/bck/bck.default" )
 		{
 			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
@@ -276,7 +274,7 @@ sub CommReports # () -> ()
 	use Socket;
 	my ( $response, $myip );
 	my ( $peer, $address );
-	my ( $cfg ) = undef;
+	my ( $cfg, $mastercfg ) = undef;
 	my ( $lang ) = undef;
 	my ( $publicip);
 	my ( $logdate ) = GetLogDate();
@@ -286,7 +284,6 @@ sub CommReports # () -> ()
 	my ( $configfilename ) = $cmdln->GetConfigFileName;
 	if ( -e $configfilename )
 	{
-		my ( $cfg, $mastercfg );
 		if ( -r "/etc/bck/bck.default" )
 		{
 			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
@@ -1295,7 +1292,7 @@ sub CreateConfig # (configfile) -> ()
 sub Update # (configfile) -> ()
 {
 	my( $configfile ) = @_;
-	my( $cfg, $name, $path, $result, $url, $user, $pass, $cmd );
+	my( $cfg, $name, $path, $result, $url, $user, $pass, $cmd, $mastercfg );
 	use File::Copy;
 	use FindBin qw( $Bin $Script );
 	$path = $Bin;
@@ -1304,7 +1301,6 @@ sub Update # (configfile) -> ()
 	my ( $configfilename ) = $cmdln->GetConfigFileName;
 	if ( -e $configfilename )
 	{
-		my ( $cfg, $mastercfg );
 		if ( -r "/etc/bck/bck.default" )
 		{
 			  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
@@ -1315,9 +1311,9 @@ sub Update # (configfile) -> ()
 			$cfg 	= Config::IniFiles->new( -file => $configfilename );
 		};
 	};
-	if ( defined $cfg)
+	if ( defined $cfg )
 	{
-		$url	= $cfg->val('update', 'url');
+		$url		= $cfg->val('update', 'url');
 		$user	= $cfg->val('update', 'user');
 		$pass	= $cfg->val('update', 'password');
 	};
@@ -1325,7 +1321,7 @@ sub Update # (configfile) -> ()
 	{
 		$cmd = "wget $url --quiet --user=$user --password=$pass --output-document=$path/$name.new";
 	}
-	else
+	elsif( defined $url )
 	{
 		$cmd = "wget $url --quiet --output-document=$path/$name.new";
 	};
