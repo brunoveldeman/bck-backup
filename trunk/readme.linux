@@ -2,17 +2,20 @@
 	bck-backup for Linux 
 -------------------------------
 
+!!! UPDATE NEEDED TO REFLECT NEW PLUGIN SYSTEM !!!
+!!! EVERY PLUGIN WILL HAVE IT'S README !!!
+
 1. Linux instalation.
     
 1.1 Install the following packages/tools:
 
 	mt-st		: for tape drive status and eject
-	tar			: to write to tapes
+	tar		: to write to tapes
 	rsync		: to copy files
 	cdrecord	: to write cd's (not implemented)
-	dvd+rw-tools: to write dvd's (not implemented)
+	dvd+rw-tools	: to write dvd's (not implemented)
 	perl		: the perl language interpreter
-	wget		: used by selfupdater
+	wget		: used by selfupdate
 	rsyncrypto	: to do the cyphering (experimental)
     
 1.2 Download bck-backup.
@@ -52,12 +55,12 @@
 	
 3. Configure bck-backup.
 
-	bck-backup can use several configuration files. The one used is defined
+	We bck-backup use several configuration files. The one used is defined
 	by the --config-file=/my/path/my.config.file command line option.
-	As special named configuration file called "bck.default" in "/etc/bck" can be
+	A special named configuration file called "bck.default" in "/etc/bck" can be
 	used to define default values for all configuration files. More on this later.
-    The config file that comes by default has sample for each type of copy.
-    Check config file structure with 
+    The config file that comes by default should have an example for each type of copy.
+    Check config file structure with:
     
 	#>bck --check
 	
@@ -66,14 +69,14 @@
 4. Test configuration.
 
     It's always a good idea to test.
-    You can run bck-backup from command line with the --debug or --verbose options
+    We can run bck-backup from command line with the --debug or --verbose options
 	to to get information on the progress of the copy.
     
     To run a configured section named "test", use --do=test
-    You can put several sections on one line, --do=test,section1,section2
+    We can put several sections on one line, --do=test,section1,section2
     these will be executed in this order.
     
-    You can tell bck-backup to use a config file other then /etc/bck/bck.config,
+    We can tell bck-backup to use a config file other then /etc/bck/bck.config,
     with the option --config-file=/my/path/my.config.file
     
 5. Add entry to crontab
@@ -82,9 +85,20 @@
     
     #>crontab -e
 	
-    To run the job from Monday to Friday on 23:30, add the following line
+    Ex.: To run the job from Monday to Friday on 23:30, add the following line
 
-	30 23 * * 1-5 /usr/local/sbin/bck --do=seccion1,seccion2
+	30	23	*	*	1-5	/usr/local/sbin/bck --do=seccion1,seccion2
+	
+    To send mail reports after completion we can add the --mail option here.
+    If we want to send reports to a report server, we add the --report option.
+    
+    Ex.: Send reports to server every night at 01:00 am
+
+	0	1	*	*	*	/usr/local/sbin/bck --report
+	
+    Ex.: We could send mails and reports after every execution at 12:00 am
+    
+	0	0	*	*	*	/usr/local/sbin/bck --do=section1,section2 --mail --report
    
 6. Server instalation
 
@@ -153,17 +167,79 @@
 
 7. Security
 
-	Running bck-backup as root might not be a good idea, 
+	Running bck-backup as root might not be a good idea, for maximum security, we can run the servers
+	in a chrooted enviroment.
+	For the backup process, running as a normal user with only read access to the files to backup
+	and read/write access to the destination directories is the best we can do.
 
-8. Sudo
+8. The command line options
+
+8.1 --version
+
+	Show version installed. Cannot be use with other options.
+	
+8.2 --help
+
+	Show brief instructions on how to use the command line options. Cannot be used with other options.
+	
+8.3 --do=
+
+	This is the option that actualy executes the sections defined. We can include more then one section
+	in one line. Sections have to be seperated by a comma ','. Ex.: do=section1,section2
+	If we specify more then one --do= option, only the last one will be used, ignoring all others.
+	
+8.4 --mail
+
+	We will use this option to send mail reports as defined in the [mail] section. If we use this together
+	with other options, the reports will be send after completion.
+	Mail is only send if the database file has pending reports
+	
+8.5 --report
+
+	Sends reports to report server, if no reports are pending, only sends a header line to confirm that
+	it's still alive. If we use it together with other options, reports will be send after completion.
 	  
-9. The configuration file
+8.6 --config-file=
+
+	Sometimes we might want to use several different configuration files, with this options we can define
+	path and filename of the configuration file. If not defined, it defaults to '/etc/bck/bck.config' .
+	The special named configuration file called '/etc/bck/bck.default' will always be read if it exists.
+	
+8.7 --verbose
+
+	By default, bck-backup is extremely quiet, with this options, some information about the process will
+	print on standard output.
+	
+8.8 --debug
+
+	For debuging purposes, print all relevant information on standard output about the process. If --verbose
+	is also used, it will be ignored.
+	
+8.9 --httpserver
+
+	Used for the web interface.
+
+8.10 --reportserver
+
+	Used for the report server.
+
+8.11 --update
+
+	Start selfupdate if correctly configured. It will download bck.backup from the update server and 
+	rename the old version appending the verion number.
+
+8.12 --check
+
+	Check the configuration file structure and report any errors.
+	Also test most [global] section settings, also will create logdir and spooldir if needed.
+
+9. The configuration files
 
 9.1 The [global] section
 
 	[global]
 	lang= 			[English]	For future use, defines the language of the web interface and mail reports.
-	client=			[name]		This identifies the configuration and is visible in the mail reports and report server header lines.
+	client=			[name]	This identifies the configuration and is visible in the mail reports and report server header lines.
 	sysloglevel=	[0-5]		For future use, defines what will be logged to the syslog.
 	winmsg=			[yes/no]	If yes, samba destinations on windows clients can receive a message at start and end of copy to their computer.
 	
@@ -182,25 +258,25 @@
 
 	
 	smtpserver=		[hostname]	Server to use as smtp server for mail reports.
-	smtpport=		[portnr]	Port to use to communicate to smpt server, normaly "25".
+	smtpport=			[portnr]	Port to use to communicate to smpt server, normaly "25".
 	smtpuser=		[mail_account] Account name for authentication on smtp server.
-	smtppass=mail	[password]	Password for authentication on smtp server.
+	smtppass=mail		[password]	Password for authentication on smtp server.
 	smtpfrom=		["User Name" <user@mail.address>] From line for mail reports.
 
-	ntpserver=		[hostname]	ntp server to use,
+	ntpserver=			[hostname]	ntp server to use,
 	
-	ipwebaddress=	[url]		url to use to get a public ip from. If omitted, not used. (not http://)
+	ipwebaddress=		[url]		url to use to get a public ip from. If omitted, not used. (not http://)
 								ex.: whatismyip.com/automation/n09230945.asp
 
 	logdir=			[path]		path to log directory. Default is "/var/log/bck".
-	spooldir=		[path]		path to statusfile derectory. Default is "/var/spool/bck".
-	tempdir=		[path]		path to temp diretory. Default is "/var/tmp". This is where temporal files
+	spooldir=			[path]		path to statusfile derectory. Default is "/var/spool/bck".
+	tempdir=			[path]		path to temp diretory. Default is "/var/tmp". This is where temporal files
 								for cyphering are created, make sure you have space available.
 
 	oktag=			[name]		Tag used in subject line when all section are ok. default: "backup"
-	errortag=		[name]		Tag used in subject line when at least one section has errors. default: "backup error"
+	errortag=			[name]		Tag used in subject line when at least one section has errors. default: "backup error"
 	warningtag=		[name]		Tag used in subject line when at least one section has warnings. default: "backup warning"
-	mailtext=		[text/path]	If it is a text or points to a file, will be apended at the end of all mail reports.
+	mailtext=			[text/path]	If it is a text or points to a file, will be apended at the end of all mail reports.
 								Default is /etc/bck/alert.txt, use this if you want make your customers aware of the
 								importance of backups in good condition.
 
@@ -209,12 +285,12 @@
 	[http]
 	user=			[user]		Username for authentification on some pages in the web interface, if left blank, access totaly denied.
 	pass=			[password]	Password for authentification on some pages in the web interface, if left blank, access totaly denied.
-	reportlines=	[num]		Number of report lines to show per page in the web interface.
+	reportlines=		[num]		Number of report lines to show per page in the web interface.
 	
 9.3 The [update] section
 
 	[update]
-	url=			[url]		URL to update server. ex:. http://bck-backup.svn.sourceforge.net/viewvc/bck-backup/stable/bck
+	url=				[url]		URL to update server. ex:. http://bck-backup.svn.sourceforge.net/viewvc/bck-backup/stable/bck
 	user=			[username]	Authentification for update server (if needed).
 	password=		[password]	Authentification for update server (if needed).
 	
