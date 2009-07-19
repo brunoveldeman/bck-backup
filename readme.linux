@@ -34,13 +34,21 @@
 
 2. Copy files.
 
+	Correct locations for all files:
+		bck and modules: /usr/lib/bck
+		plugins: /usr/lib/bck/plugins
+		configuration files: /etc/bck
+		database files: /var/lib/bck
+
 2.1 Program file.
 
-    Copy bck to /usr/local/sbin 
+    Copy bck to /usr/lib/bck
 	
-	#>cp bck /usr/local/sbin
+	#>cp bck /usr/lib/bck
     
-	If we copy the program file in a directory that is not in your PATH, we will have to run it by typing it's full path.
+	If we copy the program file in a directory that is not in your PATH, we will have to run it by typing it's full path, or we can create a symlink:
+	
+	ln -s /usr/lib/bck/bck /usr/local/sbin/bck
 	
 2.2 Configuration file(s).
 
@@ -99,6 +107,8 @@
     Ex.: We could send mails and reports after every execution at 12:00 am
     
 	0	0	*	*	*	/usr/local/sbin/bck --do=section1,section2 --mail --report
+	
+	Note: change path if needed according to file locations
    
 6. Server instalation
 
@@ -129,6 +139,8 @@
     To show de web-interface, point a browser to the servers ip address on port 2311
       > ex.: http://192.168.100.10:2311
       
+	Note: change path if needed according to file locations
+	
 6.2 Report server
 
     Install an inetd server if not already installed
@@ -154,6 +166,8 @@
 		port=2312
 		password=mysecret
 
+	Note: change path if needed according to file locations
+
 6.3 Running the Web front-end and the Report server on the same port
 
     The line in /etc/services
@@ -164,6 +178,8 @@
 
     Restart the inetd server
       #>/etc/init.d/inetutils-inetd restart
+
+	Note: change path if needed according to file locations
 
 7. Security
 
@@ -241,22 +257,7 @@
 	lang= 			[English]	For future use, defines the language of the web interface and mail reports.
 	client=			[name]	This identifies the configuration and is visible in the mail reports and report server header lines.
 	sysloglevel=	[0-5]		For future use, defines what will be logged to the syslog.
-	winmsg=			[yes/no]	If yes, samba destinations on windows clients can receive a message at start and end of copy to their computer.
-	
-	The folowing entries indicate the location of binaries we want to use
-	mt=/bin/mt
-	tar=/bin/tar
-	smbmount=/usr/bin/smbmount
-	smbumount=/usr/bin/smbumount
-	smbclient=/usr/bin/smbclient
-	sudo=/usb/bin/sudo
-	rsync=/usr/bin/rsync
-	du=/usr/bin/du
-	cdrecord=/usr/bin/cdrecord
-	dvdrecord=/usr/bin/growisofs
-	dvdformat=/usr/bin/dvd+rw-format
 
-	
 	smtpserver=		[hostname]	Server to use as smtp server for mail reports.
 	smtpport=			[portnr]	Port to use to communicate to smpt server, normaly "25".
 	smtpuser=		[mail_account] Account name for authentication on smtp server.
@@ -269,7 +270,7 @@
 								ex.: whatismyip.com/automation/n09230945.asp
 
 	logdir=			[path]		path to log directory. Default is "/var/log/bck".
-	spooldir=			[path]		path to statusfile derectory. Default is "/var/spool/bck".
+	dbdir=			[path]		path to statusfile derectory. Default is "/var/spool/bck".
 	tempdir=			[path]		path to temp diretory. Default is "/var/tmp". This is where temporal files
 								for cyphering are created, make sure you have space available.
 
