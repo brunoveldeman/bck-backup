@@ -26,6 +26,8 @@
 package Plugin;
 use strict;
 use warnings;
+# Plugin version
+my( $version ) = "0.0.1";
 #############################################################################
 #
 # Constructor
@@ -48,14 +50,18 @@ sub new
 		_required	=> {},
 		_optional	=> {}
 	};
-	$self->{_required} =	{	type=>"firebird",
-								name=>"Brief description of the operation. ex.: \"Main database\"",
-								sourcelist=>"Databases to include in copy. Only one can be specified",
-								dest=>"Destination folder."
-							};
-	$self->{_optional} = 	{ 	histdirs=>"Numeric value indicating the number of historical copies to be kept on destination. (A value of -1 creates a new folder for every run.)",
-								options=>"Options to pass to the \"gbak\" command used to backup the database."
-								};
+	$self->{_required} =	
+				{
+					type=>"firebird",
+					name=>"Brief description of the operation. ex.: \"Main database\"",
+					sourcelist=>"Databases to include in copy. Only one can be specified",
+					dest=>"Destination folder."
+				};
+	$self->{_optional} = 	
+				{
+					histdirs=>"Numeric value indicating the number of historical copies to be kept on destination. (A value of -1 creates a new folder for every run.)",
+					options=>"Options to pass to the \"gbak\" command used to backup the database."
+				};
 	bless( $self, $class );
 	return( $self );
 };
@@ -129,11 +135,13 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 		if ( $status == 0 )
 		{
 			$self->{_writelog}->( "Database backup (gbk) created." , 1 );
+			$self->{_infotext} = "Database backup (gbk) created.";
 		}
 		else
 		{
 			$self->{_writelog}->( "One or more errors/warning." , 1 );
 			$self->{_status} = 2 unless ( $self->{_status} ge 2 );
+			$self->{_infotext} = "One or more errors/warning.";
 		};
 		# We also copy the database file itself just to be sure
 		if ( copy( $source, $self->{_param}{'dest'} . '/' . $self->{_section} . ".fdb" ) )
@@ -168,7 +176,7 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 		$self->{_writelog}->( " Database source file does not exist." , 0 );
 		$self->{_status} = 2 unless ( $self->{_status} ge 2 );
 	};
-	return(0);
+	return( $self->{_status} );
 };
 
 1;
