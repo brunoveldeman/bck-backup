@@ -27,6 +27,8 @@
 package Plugin;
 use strict;
 use warnings;
+# Plugin version
+my( $version ) = "0.0.1";
 #############################################################################
 #
 # Constructor
@@ -46,19 +48,21 @@ sub new
 		_required	=> {},
 		_optional	=> {}
 	};
-	$self->{_required} =	{	# This is a named hash with the required options and it's description.
-								# Here goes the type (required) option, this must be the same as the filename without the extension (.pm).
-								type=>"skeleton", 
-								# Here goes the name (required) option and it's description.
-								name=>"name", 
-								# Here go all the other options.
-								# Ex.: sourcelist option.
-								sourcelist=>"Comma separated list of sources to include. Multiple entries can be used."
-							};
-	$self->{_optional} = 	{ 	# This is a named hash with the optional options and it's description.
-								# Ex.: histdirs
-								myoption=>"My optional option for this plugin."
-							};
+	$self->{_required} =	
+				{	# This is a named hash with the required options and it's description.
+					# Here goes the type (required) option, this must be the same as the filename without the extension (.pm).
+					type=>"skeleton", 
+					# Here goes the name (required) option and it's description.
+					name=>"name", 
+					# Here go all the other options.
+					# Ex.: sourcelist option.
+					sourcelist=>"Comma separated list of sources to include. Multiple entries can be used."
+				};
+	$self->{_optional} = 	
+				{ 	# This is a named hash with the optional options and it's description.
+					# Ex.: histdirs
+					myoption=>"My optional option for this plugin."
+				};
 	bless( $self, $class );
 	return( $self );
 };

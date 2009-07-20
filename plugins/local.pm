@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#! /usr/bin/perl --
 # Local.pm
 # This a a bck-backup plugin.
 #
@@ -26,6 +26,8 @@
 package Plugin;
 use strict;
 use warnings;
+# Plugin version
+my( $version ) = "0.0.1";
 #############################################################################
 #
 # Constructor
@@ -48,16 +50,20 @@ sub new
 		_required	=> {},
 		_optional	=> {}
 	};
-	$self->{_required} =	{	type=>"local",
-								name=>"Brief description of the operation. ex.: \"Copy my documents\"",
-								sourcelist=>"Comma separated list of sources to include in copy. Multiple entries can be used.",
-								dest=>"Destination folder."
-							};
-	$self->{_optional} = 	{ 	maxsize=>"Maximum bytes for copy, will no copy if larger.",
-								histdirs=>"Numeric value indicating the number of historical copies to be kept on destination. (A value of -1 creates a new folder for every run.)",
-								options=>"Options to pass to the \"rsync\" command used to copy the files.",
-								excludelist=>"List of files/folders to exclude from copy."
-								};
+	$self->{_required} =	
+				{
+					type=>"local",
+					name=>"Brief description of the operation. ex.: \"Copy my documents\"",
+					sourcelist=>"Comma separated list of sources to include in copy. Multiple entries can be used.",
+					dest=>"Destination folder."
+				};
+	$self->{_optional} = 	
+				{ 	
+					maxsize=>"Maximum bytes for copy, will no copy if larger.",
+					histdirs=>"Numeric value indicating the number of historical copies to be kept on destination. (A value of -1 creates a new folder for every run.)",
+					options=>"Options to pass to the \"rsync\" command used to copy the files.",
+					excludelist=>"List of files/folders to exclude from copy."
+				};
 	bless( $self, $class );
 	return( $self );
 };
@@ -111,7 +117,19 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 				};
 			};
 			#end build excludelist string
-			my $cmd = 'rsync --recursive --copy-links --verbose --times --delete-after --modify-window=3 --stats ' . $excludelist . ' "' . $source . '" ' . $self->{_param}{'dest'} . '/' . $self->{_section} . '/';
+			if ( defined $self->{_param}{'options'} )
+			{
+				$options =  $self->{_param}{'options'} . ' ';
+				$options =~ s/--verbose//g;
+				$options =~ s/--stats//g;
+				$options = "--verbose --stats " . $options;
+			}
+			else
+			{
+				$options = '--recursive --copy-links --verbose --times --delete-after --modify-window=3 --stats';
+			};
+
+			my $cmd = 'rsync ' . $options . ' ' . $excludelist . ' "' . $source . '" ' . $self->{_param}{'dest'} . '/' . $self->{_section} . '/';
 			$self->{_writelog}->( "Command : " . $cmd , 3 );
 			open (DATA, "$cmd 2>&1 |" ) or $status = 1;
 			#read stdin
@@ -163,19 +181,18 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 				{
 					$self->{_writelog}->( "Some files could not be copied. " , 1 );
 					$self->{_status} = 1 unless ( $self->{_status} ge 1 );
-					$self->{_infotext} = "partial transfer";
-				}
+					$self->{_infotext} .= "-$source: partial transfer";
 				elsif ( $status == 24 )
 				{
 					$self->{_writelog}->( "Some files vanished before copying. " , 1 );
 					$self->{_status} = 1 unless ( $self->{_status} ge 1 );
-					$self->{_infotext} = "file(s) vanished on sender side";
+					$self->{_infotext} .= "-$source: file(s) vanished on sender side";
 				}
 				else
 				{
 					$self->{_writelog}->( "Not copied " , 1 );
 					$self->{_status} = 2 unless ( $self->{_status} ge 2 );
-					$self->{_infotext} = "files not copied";
+					$self->{_infotext} .= "-$source: files not copied";
 				};
 			};
 			#end check exit status
@@ -185,6 +202,7 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 		{
 			$self->{_status} = 2 unless ( $self->{_status} ge 2 );
 			$self->{_writelog}->( " Source " . $source . " does not exist." , 0 );
+			$self->{_infotext} .= "-$source: does not exist";
 		};
 		#end check if source exists
 	};

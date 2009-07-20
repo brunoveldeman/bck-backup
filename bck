@@ -1091,12 +1091,12 @@ sub CreateConfig # (configfile) -> ()
 sub Update # (configfile) -> ()
 {
 	my( $configfile ) = @_;
-	my( $cfg, $name, $path, $result, $url, $user, $pass, $cmd, $mastercfg );
+	my( $cfg, $name, $path, $result, $url, $user, $pass, $cmd, $mastercfg, $installed, $downloaded );
 	use File::Copy;
+	use File::Basename;
 	use FindBin qw( $Bin $Script );
 	$path = $Bin;
 	$name = $Script;
-	print "Preparing to update bck-backup version $version...\n";
 	my ( $configfilename ) = $cmdln->GetConfigFileName;
 	if ( -e $configfilename )
 	{
@@ -1116,64 +1116,103 @@ sub Update # (configfile) -> ()
 		$user	= $cfg->val('update', 'user');
 		$pass	= $cfg->val('update', 'password');
 	};
-	if ( ( defined $url ) and ( defined $user ) and ( defined $pass ) )
+	if ( -l "$path/$name" )
 	{
-		$cmd = "wget $url --quiet --user=$user --password=$pass --output-document=$path/$name.new";
-	}
-	elsif( defined $url )
-	{
-		$cmd = "wget $url --quiet --output-document=$path/$name.new";
+		my ( $link ) = readlink "$path/$name";
+		$path = dirname( $link );
+		$name = basename( $link );
 	};
-	if ( defined $url )
+	my ( @modules );
+	push( @modules, $name );
+	my ( $dir ) = $path . "/plugins";
+	if ( opendir ( DIR, $dir ) )
 	{
-		$result = `$cmd`;
-		if ( -e  "$path/$name.new" )
+		while( ( my $filename = readdir(DIR)))
 		{
-			# Check the downloaded version.
-			undef $result;
-			open FILE, "<$path/$name.new";
-			while ( <FILE>)
+			push( @modules, "/plugins/$filename") unless !( $filename =~ m/.pm$/);
+		}
+		closedir(DIR);
+	}
+	else
+	{
+		print "Could not read plugins directory.\n";
+	};
+	foreach my $module ( @modules )
+	{
+		# Check the installed version.
+		undef $installed;
+		open FILE, "<$path/$module";
+		while ( <FILE>)
+		{
+			if ( /my.*\$version.*=.*\"(\d+\.\d+\.\d+)\"/ )
 			{
-				if ( /my.*\$version.*=.*\"(\d+\.\d+\.\d+)\"/ )
-				{
-					$result = "$1";
-					last;
-				};
+				$installed = "$1";
+				last;
 			};
-			close FILE;
-			print "Downloaded version $result\n";
-			chomp( $result );
-			if ( &ConvertVersionString($result) gt &ConvertVersionString($version) )
+		};
+		close FILE;
+		$installed = "0" unless defined $installed;
+		print "Preparing to update [$module] version: $installed...\n";
+		if ( ( defined $url ) and ( defined $user ) and ( defined $pass ) )
+		{
+			$cmd = "wget $url/$module --quiet --user=$user --password=$pass --output-document=$path/$module.new";
+		}
+		elsif( defined $url )
+		{
+			$cmd = "wget $url/$module --quiet --output-document=$path/$module.new";
+		};
+		if ( defined $cmd )
+		{
+			$result = `$cmd`;
+			if ( -e  "$path/$module.new" )
 			{
-				print "Installing new version...\n";
-				if ( -e "$path/$name.$version" )
+				# Check the downloaded version.
+				undef $downloaded;
+				open FILE, "<$path/$module.new";
+				while ( <FILE>)
 				{
-					unlink ("$path/$name.$version");
+					if ( /my.*\$version.*=.*\"(\d+\.\d+\.\d+)\"/ )
+					{
+						$downloaded = "$1";
+						last;
+					};
 				};
-				chmod 0755, "$path/$name.new";
-				move ("$path/$name","$path/$name.$version");
-				move ("$path/$name.new","$path/$name");
-				print "$name succesfully updated to version $result\n";
-			}
-			elsif ( &ConvertVersionString($result) lt &ConvertVersionString($version) )
-			{
-				print "No updates available, instaled version ($version) is newer then downloaded version ($result).\n";
-				unlink ("$path/$name.new");
+				close FILE;
+				$downloaded = "0" unless defined $downloaded;
+				print "Downloaded [$module] version: $downloaded\n";
+				chomp( $downloaded );
+				if ( &ConvertVersionString($downloaded) gt &ConvertVersionString($installed) )
+				{
+					print "Installing new [$module] version: $downloaded\n";
+					if ( -e "$path/$module.$installed" )
+					{
+						unlink ("$path/$module.$installed");
+					};
+					chmod 0755, "$path/$module.new";
+					move ("$path/$module","$path/$module.$installed");
+					move ("$path/$module.new","$path/$module");
+					print "$module succesfully updated to version $downloaded\n";
+				}
+				elsif ( &ConvertVersionString($downloaded) lt &ConvertVersionString($installed) )
+				{
+					print "No updates available for [$module], instaled version ($installed) is newer then downloaded version ($result).\n";
+					unlink ("$path/$module.new");
+				}
+				else
+				{
+					print "Already up to date [$module].\n";
+					unlink ("$path/$module.new");
+				};
 			}
 			else
 			{
-				print "Already up to date.\n";
-				unlink ("$path/$name.new");
+				print "Update [$module] failed\n";
 			};
 		}
 		else
 		{
-			print "Update failed\n";
+			print "Update [$module] failed\n";
 		};
-	}
-	else
-	{
-		print "Update failed\n";
 	};
 	return(0);
 };
@@ -1189,7 +1228,6 @@ sub ConvertVersionString # ( $versionstring ) -> ( $versionnum )
 	my ( $version ) = @_;
 	my ( $vernum, $vercount );
 	# Clean up the string
-	chomp ( $version);
 	$version = StrCl( $version );
 	$version =~ s/^\s+//;
 	$version =~ s/\s+$//;
@@ -1701,7 +1739,7 @@ sub HtmlMain # () -> ()
 	. "</th>\n"
 	. "<th class=\"lines\" width=\"120\">Date/Time\n"
 	. "</th>\n"
-	. "<th class=\"lines\" width=\"120\">Size (Use%)\n"
+	. "<th class=\"lines\" width=\"120\">Info\n"
 	. "</th>\n"
 	. "<th class=\"lines\" width=\"100\">Status\n"
 	. "</th>\n"
@@ -1732,20 +1770,21 @@ sub HtmlMain # () -> ()
 			$infotext = ::StrCl( $infotext );
 			my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( $timestamp );
 			my ( $date ) =  sprintf( "%02d/%02d/%02d %02d:%02d", $mday, ( $mon + 1 ), ( $year + 1900 ), $hour, $min );
-			$self->AddHtml ( "<tr " );
+			$self->AddHtml ( "<tr class=" );
 			if ( $statusbits & 4 )
 			{
-				$self->AddHtml( "class=\"header\"" );
+				$self->AddHtml( '"header"' );
 			}
 			elsif ( $statusbits & 128 )
 			{
-				$self->AddHtml( "class=\"remote\"" );
+				$self->AddHtml( '"remote"' );
 			}
 			else
 			{
-				$self->AddHtml( "class=\"local\"" );
+				$self->AddHtml( '"local"' );
 			};
-			$self->AddHtml ( ">\n" . "<td class=\"lines\"><a class=\"line\" href=\"/detail/$id\">[$section] $name</a>\n" . "</td>\n" );
+			$self->AddHtml ( ">\n" );
+			$self->AddHtml ( "<td class=\"lines\"><a class=\"line\" href=\"/detail/$id\">[$section] $name</a>\n" . "</td>\n" );
 			$self->AddHtml ( "<td class=\"lines\">$date\n" . "</td>\n" );
 			$self->AddHtml ( "<td class=\"blue\">\n" );
 			if ( $destsize ne 0 )
