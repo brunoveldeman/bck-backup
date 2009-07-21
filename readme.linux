@@ -46,7 +46,8 @@
 	
 	#>cp bck /usr/lib/bck
     
-	If we copy the program file in a directory that is not in your PATH, we will have to run it by typing it's full path, or we can create a symlink:
+	If we copy the program file in a directory that is not in your PATH, we will have to 
+	run it by typing it's full path, or we can create a symlink:
 	
 	ln -s /usr/lib/bck/bck /usr/local/sbin/bck
 	
@@ -352,3 +353,33 @@
 	eject = [yes/no] Eject medium after backup, if supported.
 	
 	... This needs more work
+	
+10. The database file
+
+10.1 Data file location.
+
+	Default location for the database file is: /var/lib/bck
+	We can change this in the configuration file, the default name of the configuration file is status.db,
+	but if we use the --config-file option, the file will be named like the config file, filtering out any non
+	alfa characters. Ex.: --config-file=/etc/bck/myconfig.cfg -> database named etcbckmyconfigbckcfg.db
+	This is done so every configuration file has its own database file.
+	The default configuration file, default.config is never used for naming.
+
+10.2 Status database field def:
+
+ |Status bits|,|Section Name|,|Section Description|,|Timestamp|,|Status|,|Size|,|Dest size|,|Dest free|,|infotext|
+      |                                                 |          |       |         |         |             -> Short description of what was done
+      |                                                 |          |       |         |         -> Bytes free on destination
+      |                                                 |          |       |         -> Size of destination in bytes
+      |                                                 |          |       -> Size of setion
+      |                                                 |          -> Text field status [OK, ERROR, Warning]
+      |                                                 -> Internal timestamp format ddmmyyyyhhmm
+      -> 8 bits [7 6 5 4 3 2 1 0]
+         Bit 0 : 0-Not send by mail		1-Send by mail			(1)
+         Bit 1 : 0-Not send to remote server	1-Send to remote server		(2)
+         Bit 2 : 0-Line				1-Header			(4)
+         Bit 3&4 : 00-OK  01-Warning  10-ERROR  11-Not Available [Defines color used in Status column] (8&16)
+         Bit 5 : 0-Finished		1-In progress				(32)
+         Bit 6 : 0-No alarm             1-Alarm					(64)
+         Bit 7 : 0-Local		1-Remote				(128)
+	 
