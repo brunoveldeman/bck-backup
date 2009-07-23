@@ -56,6 +56,7 @@ sub new
 				};
 	$self->{_optional} = 	
 				{ 
+					proc=>"[yes|no] If set to yes will also log info from proc"
 				};
 	bless( $self, $class );
 	return( $self );
@@ -69,15 +70,13 @@ sub new
 sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, destsize] ] ] )
 {
 	my ( $self ) = shift;
-	my ( $raidsize) = 0;
+	my ( $raidsize ) = 0;
 	my ( $status ) = 0;
 	my ( @raidlist ) = split(/[,\n]/,$self->{_param}{'raid'} );
-	#check if histdirs is set
 	#loop sources
 	foreach my $raid (@raidlist)
 	{
 		my $cmd = 'mdadm --detail ' . $raid;
-		$cmd = 'cat /home/data/bck-backup/trunk/plugins/mdadm.txt';
 		$self->{_writelog}->( "Command : " . $cmd , 3 );
 		open (DATA, "$cmd 2>&1 |" ) or $status = 1;
 		#read stdin
@@ -87,6 +86,19 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 			{
 				chomp($line);
 				$self->{_writelog}->( $line , 3 );
+				#first line shoud be the raid device, so we look for that
+				if ( $line =~ m/^(\/dev\/.*):/ )
+				{
+					if ( $1 ne $raid )
+					{
+						$self->{_status} = 2 unless ( $self->{_status} ge 2 );
+						$self->{_writelog}->( "Raid $raid error. Device: $1" , 1 );
+					}
+					else
+					{
+						$self->{_writelog}->( "Raid $raid info. Device: $1" , 1 );
+					};
+				};
 				if ( $line =~ m/^State : (.*)/g )
 				{
 					my ( $mdstate ) = $1;
@@ -103,7 +115,7 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 				}
 				if ( $line =~ m/^Array Size : (.*) \(/g )
 				{
-					$raidsize += $1;
+					$raidsize += ( $1 * 1000 );
 				};
 				
 			};
@@ -111,9 +123,10 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 			$status = $? >> 8;
 		};
 		#end read stdin
-		if ( $status ne 0)
+		if ( $status ne 0 )
 		{
-			$self->{_status} = 	2;
+			$self->{_status} = 2 unless ( $self->{_status} ge 2 );
+			$self->{_infotext} .= "mdadm error: $status";
 		};
 		$self->{_writelog}->( "Exit status : " . $status , 2 );
 	};

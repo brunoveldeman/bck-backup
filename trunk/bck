@@ -3411,7 +3411,7 @@ sub GetNumLines # ( ) -> ( $numlines )
 #
 # AddLine : Add line to end of file
 #
-# Input validation : PENDING!
+# Input validation : OK (BV 23/7/2009)
 #
 #######################################################################################
 sub AddLine # ( ) -> ( )
@@ -3419,6 +3419,15 @@ sub AddLine # ( ) -> ( )
 	my ( $self ) = shift;
 	my ( $line, @lines );
 	my ( $ar ) = tie @lines, 'Tie::File', $self->{_file};
+	$self->{_statusbits} = ::NumCl( $self->{_statusbits} );
+	$self->{_section} = ::StrCl( $self->{_section} );
+	$self->{_name} = ::StrCl( $self->{_name} );
+	$self->{_timestamp} = ::NumCl( $self->{_timestamp} );
+	$self->{_statustext} = ::StrCl( $self->{_statustext} );
+	$self->{_size} = ::NumCl( $self->{_size} );
+	$self->{_destsize} = ::NumCl( $self->{_destsize} );
+	$self->{_destfree} = ::NumCl( $self->{_destfree} );
+	$self->{_infotext} = ::StrCl( $self->{_infotext} );
 	$ar->flock();
 	$line = $self->{_statusbits} . "," . $self->{_section} . "," . $self->{_name} . "," . $self->{_timestamp} . "," . $self->{_statustext} . "," . $self->{_size} . "," . $self->{_destsize} . "," . $self->{_destfree} . "," . $self->{_infotext};
 	push( @lines, $line );
