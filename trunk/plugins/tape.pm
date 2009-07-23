@@ -241,9 +241,9 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 	}
 	else
 	{
-		$self->{_writelog}->( "No tape in tape device " . $self->{_dest} . " or defective tape", 0 );
+		$self->{_writelog}->( "No tape in tape device " . $self->{_param}{'dest'} . " or defective tape", 0 );
 		$self->{_status} = 2 unless ( $self->{_status} ge 2 );
-		$self->{_infotext} .= "-No tape in tape device $self->{_dest}.";
+		$self->{_infotext} .= "-No tape in tape device $self->{_param}{'dest'}.";
 	};
 	return( $self->{_status} , $self->{_infotext}, $size, "0", "0" );
 };
