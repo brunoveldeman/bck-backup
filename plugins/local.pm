@@ -1,5 +1,5 @@
 #! /usr/bin/perl --
-# Local.pm
+# local.pm
 # This a a bck-backup plugin.
 #
 # Written & Copyright (c) by : Bruno Veldeman
