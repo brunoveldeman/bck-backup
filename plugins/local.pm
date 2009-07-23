@@ -76,7 +76,7 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 {
 	use File::Copy;
 	my ( $self ) = shift;
-	my ( $source );
+	my ( $source, $options );
 	my ( $status ) = 0;
 	my ( @sources ) = split(/[,\n]/,$self->{_param}{'sourcelist'} );
 	#check if histdirs is set
@@ -126,7 +126,7 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 			}
 			else
 			{
-				$options = '--recursive --copy-links --verbose --times --delete-after --modify-window=3 --stats';
+				$options = '--recursive --copy-links --verbose --times --delete-after --modify-window=3 --no-whole-file --stats';
 			};
 
 			my $cmd = 'rsync ' . $options . ' ' . $excludelist . ' "' . $source . '" ' . $self->{_param}{'dest'} . '/' . $self->{_section} . '/';
