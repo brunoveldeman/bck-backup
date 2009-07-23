@@ -22,7 +22,6 @@
 #################################################################################
 #
 #
-
 package Plugin;
 use strict;
 use warnings;
@@ -41,7 +40,7 @@ sub new
 		_section	=> shift,
 		_writelog	=> shift, 
 		_writelist	=> shift,
-		_param		=> @_,
+		_param	=> @_,
 		_status   	=> 0,
 		_infotext	=> undef,
 		_required	=> {},
@@ -54,7 +53,8 @@ sub new
 					sourcelist=>"Comma separated list of sources to include. Multiple entries can be used.",
 					dest=>"Destination device."
 				};
-	$self->{_optional} = 	
+	$self->{_optional} = 
+				{
 					eject=>"[yes|no] Eject tape after writing if set to \"yes\".",
 					label=>"[yes|no] Read label before writing if set to \"yes\". (tar must be version 1.15.90 or higher)"
 				};
@@ -69,10 +69,13 @@ sub new
 sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, destsize] ] ] )
 {
 	my ( $self ) = shift;
-	my ( $sourcelist );
+	my ( $sourcelist ) = "";
+	my ( $source );
+	my ( $excludelist ) = "";
 	my ( $online ) = 0;
 	my ( $cleaning ) = 0;
 	my ( $status ) = 0;
+	my ( $size ) = 0;
 	my ( @sources ) = split(/[,\n]/,$self->{_param}{'sourcelist'} );
 	#loop sources
 	foreach $source ( @sources )
@@ -89,26 +92,26 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 	};
 	# Check tape status
 	my $cmd = "mt -f " . $self->{_param}{'dest'} . " status";
-	my ( $status ) = 0;
+	$status = 0;
 	open (DATA, "$cmd 2>&1 |" ) or $status = 1;
-	$self->WriteLog( "Command : " . $cmd , 3 );
+	$self->{_writelog}->( "Command : " . $cmd , 3 );
 	if ( $status == 0 )
 	{
 		my ( $flag ) = 0;
 		while ( defined ( my $line = <DATA> )  )
 		{
 			chomp($line);
-			$self->WriteLog->( $line , 1 );
+			$self->{_writelog}->( $line , 3 );
 			#  Check for ONLINE
 			if ( $line =~ m/ONLINE/ )
 			{
-				$online = 1
-				$self->{_writelog}->( "Tape " . $self->{_param}{'dest'} . "online.", 3 );
+				$online = 1;
+				$self->{_writelog}->( "Tape " . $self->{_param}{'dest'} . " online.", 1 );
 			};
 			if ( $line =~ m/CLN/ )
 			{
-				$cleaning = 1
-				$self->{_writelog}->( "Tape " . $self->{_param}{'dest'} . " needs cleaning.", 3 );
+				$cleaning = 1;
+				$self->{_writelog}->( "Tape " . $self->{_param}{'dest'} . " needs cleaning.", 1 );
 				$self->{_status} = 1 unless ( $self->{_status} ge 1 );
 				$self->{_infotext} .= "-Tape device $self->{_param}{'dest'} needs cleaning";
 			};
@@ -120,41 +123,44 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 	 # End check tape status
 	if ( $online ne 0 )
 	{
-		if ( defined 
-		# Read label from tape (tar must be at least 1.15.90)
-		$status = 0;
-		my $cmd = 'tar --test-label --file ' . $self->{_dest};
-		open (DATA, "$cmd 2>&1 |" ) or $status = 1;
-		$self->WriteLog->( "Command : " . $cmd , 3 );
-		if ( $status == 0 )
+		$self->{_param}{'label'} = "no" unless defined  $self->{_param}{'label'};
+		if ( $self->{_param}{'label'} eq "yes" )
 		{
-			while ( defined ( my $line = <DATA> )  )
+			# Read label from tape (tar must be at least 1.15.90)
+			$status = 0;
+			my $cmd = 'tar --test-label --file ' . $self->{_param}{'dest'};
+			open (DATA, "$cmd 2>&1 |" ) or $status = 1;
+			$self->{_writelog}->( "Command : " . $cmd , 3 );
+			if ( $status == 0 )
 			{
-				chomp($line);
-				my ( $label ) = $line;
-				if ( defined $label )
+				while ( defined ( my $line = <DATA> )  )
 				{
-					$self->WriteLog( "Using tape with label: " . $line , 3 );
-				}
-				else
-				{
-					$self->WriteLog( "Using tape with no label" , 3 );
+					chomp($line);
+					my ( $label ) = $line;
+					if ( defined $label )
+					{
+						$self->{_writelog}->( "Using tape with label: " . $line , 1 );
+					}
+					else
+					{
+						$self->{_writelog}->( "Using tape with no label" , 1 );
+					};
 				};
+				close DATA;
+				$status = $? >> 8;
+			}
+			else
+			{
+				$self->{_status} = 1 unless ( $self->{_status} ge 1 );
+				$self->{_writelog}->( "Cannot read tape label." , 1 );
 			};
-			close DATA;
-			$status = $? >> 8;
+			# End read label
 		};
-		if ( $status ne 0 )
-		{
-			$self->{_status} = 1 unless ( $self->{_status} ge 1 );
-			$self->WriteLog( "Cannot read tape label." , 1 );
-		};
-		# End read label
 		# Tar command
-		$cmd = 'tar --create  --dereference --verbose --totals --label ' . $self->{_section} . "." . $self->{_logdate} . ' ' . $excludelist . ' --file ' . $self->{_dest} . ' ' . $sourcelist;
+		$cmd = 'tar --create  --dereference --verbose --totals --label ' . $self->{_section} . "." . time . ' ' . $excludelist . ' --file ' . $self->{_param}{'dest'} . ' ' . $sourcelist;
 		$status = 0;	
 		open (DATA, "$cmd 2>&1 |" ) or $status = 1;
-		$self->WriteLog->( "Command : " . $cmd , 3 );
+		$self->{_writelog}->( "Command : " . $cmd , 3 );
 		if ( $status == 0 )
 		{
 			while ( defined ( my $line = <DATA> )  )
@@ -162,57 +168,75 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 				chomp($line);
 				if ( $line =~ m/^\// )
 				{
-					$self->WriteList->( $line );
+					$self->{_writelist}->( $line );
 				}
 				else
 				{
-					if ( $line =~ m/tar:/ )
+					if ( ( $line =~ m/tar:/ ) and ( $line !~ m/Removing leading/ ) )
 					{
-						$self->WriteLog->( $line , 1 );
+						$self->{_writelog}->( $line , 1 );
 					}
 					else
 					{
-						$self->WriteLog->( $line , 3 );
+						$self->{_writelog}->( $line , 3 );
 					};
 				};
+				if ( $line =~ m/^Total bytes written: (.*) \(.*, (.*)\)/ )
+				{
+					$size = $1;
+					$self->{_writelog}->( "Total bytes written: $size", 1 );
+					$self->{_infotext} .= "-Data troughput: $2";
+					$self->{_writelog}->( "Data troughput: $2", 1 );
+				}
 			};
 			close DATA;
 			$status = $? >> 8;
 		};
-		$self->WriteLog->( "Exit status : " . $status , 2 );
+		$self->{_writelog}->( "Exit status : " . $status , 2 );
+		if ( $status ne 0 )
+		{
+			$self->{_status} = 2 unless ( $self->{_status} ge 2 );
+			
+		};
 		# End tar command
 		# mt rewoffl if eject = yes
-		if ( $self->{_eject} eq "yes" )
+		$self->{_param}{'eject'} = "no" unless defined  $self->{_param}{'eject'};
+		if ( $self->{_param}{'eject'} eq "yes" )
 		{
-			my $cmd = "mt -f " . $self->{_dest} . " rewoffl";
-			$status = 0;
-			open (DATA, "$cmd 2>&1 |" ) or $status = 1;
-			$self->WriteLog( "Command : " . $cmd , 3 );
-			if ( $status == 0 )
+			$cmd = "mt -f " . $self->{_param}{'dest'} . " rewoffl";
+		}
+		else
+		{
+			$cmd = "mt -f " . $self->{_param}{'dest'} . " rewind";
+		};
+		$status = 0;
+		open (DATA, "$cmd 2>&1 |" ) or $status = 1;
+		$self->{_writelog}->( "Command : " . $cmd , 3 );
+		if ( $status == 0 )
+		{
+			while ( defined ( my $line = <DATA> )  )
 			{
-				while ( defined ( my $line = <DATA> )  )
+				chomp($line);
+				if ( $line =~ m/:/ )
 				{
-					chomp($line);
-					if ( $line =~ m/:/ )
-					{
-						$self->WriteLog( $line , 1 );
-					}
-					else
-					{
-						$self->WriteLog( $line , 3 );
-					}
-				};
-				close DATA;
-				$status = $? >> 8;
+					$self->{_writelog}->( $line , 1 );
+				}
+				else
+				{
+					$self->{_writelog}->( $line , 3 );
+				}
 			};
-			if ( $status != 0 )
-			{
-				$self->WriteLog( "Tape eject error" , 1 );
-			}
-			else
-			{
-				$self->WriteLog( "Tape ejected" , 1 );
-			};
+			close DATA;
+			$status = $? >> 8;
+		};
+		$self->{_writelog}->( "Exit status : " . $status , 2 );
+		if ( $status ne 0 )
+		{
+			$self->{_writelog}->( "Tape eject/rewind error" , 1 );
+		}
+		else
+		{
+			$self->{_writelog}->( "Tape eject/rewind ok" , 1 );
 		};
 	}
 	else
@@ -221,34 +245,7 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 		$self->{_status} = 2 unless ( $self->{_status} ge 2 );
 		$self->{_infotext} .= "-No tape in tape device $self->{_dest}.";
 	};
-	#check status
-	if ( $self->{_status} eq 0 )
-	{
-		$self->{_writelog}->( "$self->{_section} ok." , 1 );
-	}
-	else
-	{
-		$self->{_writelog}->( "$self->{_section} warning/error." , 1 );
-	};
-	#end check status
-	return( $self->{_status} , $self->{_infotext}, "0", "0", "0" );
+	return( $self->{_status} , $self->{_infotext}, $size, "0", "0" );
 };
 
 1;
-
-####################################################################################3
-	}
-	else
-	{
-		$self->WriteLog ( "Tape status error, no tape found in device or wrong/defective tape.", 0);
-	};
-	if ( $status == 0 )
-	{
-		$self->WriteLog( "All files copied." , 1 );
-	}
-	else
-	{
-		$self->WriteLog( "One or more errors/warning." , 1 );
-	};
-	return ( $status );
-};
