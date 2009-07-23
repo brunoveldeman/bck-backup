@@ -4073,14 +4073,24 @@ sub Run
 {
 	my ( $self ) = shift;
 	# Start crono
+	use FindBin qw( $Bin $Script );
+	use File::Basename;
 	$self->{_starttime} = time();
+	my ( $path ) = $Bin;
+	my ( $name ) = $Script;
+		if ( -l "$path/$name" )
+	{
+		my ( $link ) = readlink "$path/$name";
+		$path = dirname( $link );
+		$name = basename( $link );
+	};
 	# We construct the $plugin string based on "type"
-	my ( $plugin ) = "./plugins/$self->{_type}.pm";
+	my ( $plugin ) = "$path/plugins/$self->{_type}.pm";
 	# If the plugin and plugin folder exist, we continue
-	if ( ( -d "./plugins" ) and ( -e "$plugin" ) )
+	if ( ( -d "$path/plugins" ) and ( -e "$plugin" ) )
 	{
 		# Set lib folder to find the plugins
-		use lib './plugins';
+		use lib '$path/plugins';
 		# Try to load the plugin
 		if ( require "$plugin" )
 		{
