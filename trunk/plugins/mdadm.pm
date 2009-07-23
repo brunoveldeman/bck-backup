@@ -1,7 +1,6 @@
 #!/usr/bin/perl
 # mdadm.pm
-# This a a bck-backup plugin skeleton.
-# Use it to create plugins.
+# This a a bck-backup plugin.
 #
 # Written & Copyright (c) by : Bruno Veldeman
 #

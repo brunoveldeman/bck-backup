@@ -117,15 +117,14 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 		};
 		$self->{_writelog}->( "Exit status : " . $status , 2 );
 	};
-	#end loop sources
 	#check status
-	if ( $status == 0 )
+	if ( $self->{_status} == 0 )
 	{
 		$self->{_writelog}->( "skeleton ok." , 1 );
 	}
 	else
 	{
-		$self->{_writelog}->( "skeleton error." , 1 );
+		$self->{_writelog}->( "skeleton warning/error." , 1 );
 	};
 	#end check status
 	return( $self->{_status} , "Infotext", "0", "0", "0" );
