@@ -26,6 +26,7 @@
 package Plugin;
 use strict;
 use warnings;
+no warnings 'redefine';
 # Plugin version
 my( $version ) = "0.0.1";
 #############################################################################
@@ -50,7 +51,7 @@ sub new
 	$self->{_required} =	
 				{	
 					type=>"mdadm", 
-					name=>"name", 
+					name=>"Description field", 
 					raid=>"Comma separated list of raids to check. Multiple entries can be used."
 				};
 	$self->{_optional} = 	

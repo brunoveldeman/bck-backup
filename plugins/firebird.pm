@@ -26,6 +26,7 @@
 package Plugin;
 use strict;
 use warnings;
+no warnings 'redefine';
 # Plugin version
 my( $version ) = "0.0.1";
 #############################################################################

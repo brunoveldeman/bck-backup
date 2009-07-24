@@ -38,7 +38,7 @@ $cmdln->ParseCommandLine();
 # Look for flags
 if ( $cmdln->GetHelpFlag )
 {
-	&PrintHelp;
+	&PrintHelp( $cmdln->GetHelpFlag );
 	exit(0);
 };
 if ( $cmdln->GetVersionFlag )
@@ -1045,21 +1045,109 @@ sub getEmailAddress # ( $test ) -> ( $email )
 # Sub PrintHelp : print help when --help option is used
 #
 ##################################################################################
-sub PrintHelp # () -> ()
+sub PrintHelp # ( $pluginhelp) -> ()
 {
+	my ( $pluginhelp ) = shift;
+	$pluginhelp = ::NumCl( $pluginhelp );
+	no warnings 'redefine';
 	print "bck version : $version\n";
+	print "Copyright (c) 2006 by Bruno Veldeman\n";
 	print "Options :\n";
 	print "	--verbose			: Verbose\n";
-	print "	--config-file=	[/mypath/myconfig.file]\n";
+	print "	--config-file=[/mypath/myconfig.file]\n";
 	print "	--update			: Update from http/ftp server.\n";
-	print "	--httpserver		: Run bck in http server mode for use with inetd\n";
-	print "	--reportserver		: Report in to central cerver.\n";
+	print "	--httpserver			: Run bck in http server mode for use with inetd\n";
+	print "	--reportserver			: Report in to central cerver.\n";
 	print "	--mail				: Send pending reports by e-mail\n";
 	print "	--check				: Check configuration file\n";
 	print "	--debug				: Debugging verbosity\n";
 	print "	--version			: Show version\n";
 	print "	--do=[block1[,block2...]]	: Execute block1, block2...\n";
-	print "	--help|?			: Show this help\n\n";
+	print "	--help|?			: Show this help\n";
+	print "	--pluginhelp			: Show help for plugins\n\r";
+	use FindBin qw( $Bin $Script );
+	use File::Basename;
+	my ( $path ) = $Bin;
+	my ( $name ) = $Script;
+		if ( -l "$path/$name" )
+	{
+		my ( $link ) = readlink "$path/$name";
+		$path = dirname( $link );
+		$name = basename( $link );
+	};
+	# We construct the $plugin string based on "type"
+	my ( $plugindir ) = $path . "/plugins/";
+	my ( @modules );
+	my ( $module );
+	# If the plugin and plugin folder exist, we continue
+	if ( -d "$plugindir" )
+	{
+		# Set lib folder to find the plugins
+		print "Plugin folder: $plugindir\n";
+		if ( opendir ( DIR, $plugindir ) )
+		{
+			print "Found plugins:";
+			while( ( my $filename = readdir(DIR)))
+			{
+				if ( $filename =~ m/.pm$/)
+				{
+					push( @modules, "$filename");
+					print " $filename";
+				}
+			}
+			closedir(DIR);
+			print "\n";
+		}
+		else
+		{
+			print "Could not read plugins directory.\n";
+		};
+	};
+	return( 0 ) unless ( $pluginhelp eq 2 );
+	my ( $cols ) = 80;
+	my ( $formatreq ) = "format required = \n"
+				. '|@>>>>>>>>>>>> => ^' . '<' x ( $cols - 16 ) . "|\n"
+				. '$key, $value' . "\n"
+				. '|                 ^' . '<' x ( $cols - 18) . '~~' . "|\n"
+				. '$value' . "\n"
+				. '.' . "\n";
+	my ( $formatopt ) = "format optional = \n"
+				. '|@>>>>>>>>>>>> => ^' . '<' x ( $cols - 16 ) . "|\n"
+				. '$key, $value' . "\n"
+				. '|                 ^' . '<' x ( $cols - 18) . '~~' . "|\n"
+				. '$value' . "\n"
+				. '.' . "\n";
+	foreach $module ( @modules )
+	{
+		print "\n|--Plugin:\t $module\n";
+		# Try to load the plugin
+		my ( $plugin ) = "$plugindir$module";
+		if ( require "$plugin" )
+		{
+			# Print out the help info for the plugin
+			my ( $key );
+			 
+			my( $do ) = Plugin->new( 0, 0, 0, {0, 0} );
+			print "|-- Required:                                                                    --|\n";
+			foreach $key ( keys %{$do->{_required}} )
+			{
+				my ( $value ) = ${$do->{'_required'}}{$key};
+				eval $formatreq;
+				$~ = 'required';
+				write;
+			};
+			print "|-- Optional:                                                                    --|\n";
+			foreach $key ( keys %{$do->{_optional}} )
+			{
+				my ( $value ) = ${$do->{'_optional'}}{$key};
+				eval $formatopt;
+				$~ = 'optional';
+				write;
+			};
+			print "|----------------------------------------------------------------------------------|\n";
+		};
+	};
+	return( 0 );
 };
 ##################################################################################
 #
@@ -1069,6 +1157,22 @@ sub PrintHelp # () -> ()
 sub PrintVersion # () -> ()
 {
 	print "bck version : $version\n";
+	print "Copyright (c) 2006 by Bruno Veldeman\n";
+	print "|-----------------------------------------------------------------------|\n";
+	print "| This program is free software: you can redistribute it and/or modify  |\n";
+	print "| it under the terms of the GNU General Public License as published by  |\n";
+	print "| the Free Software Foundation, either version 3 of the License, or     |\n";
+	print "| (at your option) any later version.                                   |\n";
+	print "|                                                                       |\n";
+	print "| This program is distributed in the hope that it will be useful,       |\n";
+	print "| but WITHOUT ANY WARRANTY; without even the implied warranty or        |\n";
+	print "| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |\n";
+	print "| GNU General Public License for more details.                          |\n";
+	print "|                                                                       |\n";
+	print "| You should have received a copy of the GNU General Public License     |\n";
+	print "| along with this program.  If not, see <http://www.gnu.org/licenses/>. |\n";
+	print "|-----------------------------------------------------------------------|\n";
+	return( 0 );
 };
 # NOT USED #################################################################################
 #
@@ -2867,7 +2971,7 @@ sub GetMailFlag {
 #parse command line and fill class
 sub ParseCommandLine{ # () -> (ok)
 	my ( $self ) = @_;
-	my ( $ok, $verbose, $configfile, $langfile, $help, $version, $debug, $install, $check, $do, $httpserver, $reportserver, $report, $mail, $update);
+	my ( $ok, $verbose, $configfile, $langfile, $help, $pluginhelp, $version, $debug, $install, $check, $do, $httpserver, $reportserver, $report, $mail, $update);
 	my ( $status ) = 0;
 	$ok = @ARGV;
 	if ( $ok > 0 )
@@ -2875,17 +2979,18 @@ sub ParseCommandLine{ # () -> (ok)
 		GetOptions
 		(
 			'verbose'	=> \$verbose,
-			'config-file=s'	=> \$configfile,
+			'config-file=s' => \$configfile,
 			'install'	=> \$install,
 			'update'	=> \$update,
-			'check'		=> \$check,
-			'debug'		=> \$debug,
-			'do=s'		=> \$do,
+			'check'	=> \$check,
+			'debug'	=> \$debug,
+			'do=s'	=> \$do,
 			'mail'		=> \$mail,
 			'version'	=> \$version,
 			'help|?'	=> \$help,
-			'httpserver'=> \$httpserver,
-			'reportserver'=> \$reportserver,
+			'pluginhelp' => \$pluginhelp,
+			'httpserver'	=> \$httpserver,
+			'reportserver' => \$reportserver,
 			'report'	=> \$report
 		);
 	}
@@ -2974,6 +3079,15 @@ sub ParseCommandLine{ # () -> (ok)
 	if (defined $help)
 	{
 		$self->{_help} = 1;
+		return (0);
+	}
+	else
+	{
+		$self->{_help} = 0;
+	};
+	if (defined $pluginhelp)
+	{
+		$self->{_help} = 2;
 		return (0);
 	}
 	else
