@@ -21,13 +21,12 @@
 #										#
 #################################################################################
 #
-#
-
+# Plugin version
+my( $version ) = "0.0.1";
 package Plugin;
 use strict;
 use warnings;
-# Plugin version
-my( $version ) = "0.0.1";
+no warnings 'redefine';
 #############################################################################
 #
 # Constructor
@@ -41,28 +40,29 @@ sub new
 		_section	=> shift,
 		_writelog	=> shift, 
 		_writelist	=> shift,
-		_param		=> @_,
+		_param	=> @_,
 		_status   	=> 0,
 		_infotext	=> undef,
-		_size		=> 0,
+		_size	=> 0,
 		_destfree	=> 0,
 		_destsize	=> 0,
 		_required	=> {},
 		_optional	=> {}
 	};
-	$self->{_required} =	
+	$self->{_required} = 
 				{
 					type=>"local",
 					name=>"Brief description of the operation. ex.: \"Copy my documents\"",
 					sourcelist=>"Comma separated list of sources to include in copy. Multiple entries can be used.",
 					dest=>"Destination folder."
 				};
-	$self->{_optional} = 	
+	$self->{_optional} = 
 				{ 	
 					maxsize=>"Maximum bytes for copy, will no copy if larger.",
 					histdirs=>"Numeric value indicating the number of historical copies to be kept on destination. (A value of -1 creates a new folder for every run.)",
 					options=>"Options to pass to the \"rsync\" command used to copy the files.",
-					excludelist=>"List of files/folders to exclude from copy."
+					excludelist=>"List of files/folders to exclude from copy.",
+					mtime=>"[n] If the integer n does not have sign this means exactly n 24-hour periods (days) ago, 0 means today.+n: if it has plus sing, then it means \"more then n 24-hour periods (days) ago\", or older then n, if it has the minus sign, then it means less than n 24-hour periods (days) ago (-n), or younger then n."
 				};
 	bless( $self, $class );
 	return( $self );
@@ -75,6 +75,7 @@ sub new
 sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 {
 	use File::Copy;
+	use File::Temp qw/ tempfile tempdir /;
 	my ( $self ) = shift;
 	my ( $source, $options );
 	my ( $status ) = 0;
@@ -106,7 +107,7 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 		if ( -e $source )
 		{
 			#build excludelist string
-			my ( $excludelist ) = '';
+			my ( $excludelist ) = "";
 			if ( defined $self->{_param}{'excludelist'} )
 			{
 				my ( @excludes ) = split( /[,\n]/, $self->{_param}{'excludelist'} );
@@ -128,8 +129,33 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 			{
 				$options = '--recursive --copy-links --verbose --times --delete-after --modify-window=3 --no-whole-file --stats';
 			};
-
-			my $cmd = 'rsync ' . $options . ' ' . $excludelist . ' "' . $source . '" ' . $self->{_param}{'dest'} . '/' . $self->{_section} . '/';
+			my ( $cmd );
+			# Start file date filter
+			my ( $filelist );
+			if ( defined $self->{_param}{'mtime'} )
+			{
+				$filelist = tempfile( "/BCKXXXXXX.lst");
+				$cmd = "find $source -mtime $self->{_param}{'mtime'} -fprint $filelist";
+				$self->{_writelog}->( "Command : " . $cmd , 3 );
+				open (DATA, "$cmd 2>&1 |" ) or $status = 1;
+				#read stdin
+				if ( $status == 0 )
+				{
+					while ( defined ( my $line = <DATA> )  )
+					{
+						chomp( $line );
+						$self->{_writelog}->( $line , 3 );
+					};
+					$self->{_writelog}->( "Done filtering files by date.", 1 );
+					$options .= " --files-from=$filelist";
+				}
+				else
+				{
+					$self->{_writelog}->( "Cannot filter file by date.", 1 );
+				};
+			};
+			# End file date filter
+			$cmd = 'rsync ' . $options . ' ' . $excludelist . ' "' . $source . '" ' . $self->{_param}{'dest'} . '/' . $self->{_section} . '/';
 			$self->{_writelog}->( "Command : " . $cmd , 3 );
 			open (DATA, "$cmd 2>&1 |" ) or $status = 1;
 			#read stdin
@@ -182,6 +208,7 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 					$self->{_writelog}->( "Some files could not be copied. " , 1 );
 					$self->{_status} = 1 unless ( $self->{_status} ge 1 );
 					$self->{_infotext} .= "-$source: partial transfer";
+				}
 				elsif ( $status == 24 )
 				{
 					$self->{_writelog}->( "Some files vanished before copying. " , 1 );
@@ -197,7 +224,16 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 			};
 			#end check exit status
 			$self->{_writelog}->( "Exit status : " . $status , 2 );
-		}
+			# Start delete temp files
+			if ( defined $self->{_param}{'mtime'} )
+			{
+				if ( -e $filelist )
+				{
+					unlink( $filelist );
+				};
+			}
+			# End delete temp files
+			}
 		else
 		{
 			$self->{_status} = 2 unless ( $self->{_status} ge 2 );
