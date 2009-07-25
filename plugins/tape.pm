@@ -45,7 +45,8 @@ sub new
 		_status   	=> 0,
 		_infotext	=> undef,
 		_required	=> {},
-		_optional	=> {}
+		_optional	=> {},
+		_help	=> undef
 	};
 	$self->{_required} =	
 				{	
@@ -59,6 +60,7 @@ sub new
 					eject=>"[yes|no] Eject tape after writing if set to \"yes\".",
 					label=>"[yes|no] Read label before writing if set to \"yes\". (tar must be version 1.15.90 or higher)"
 				};
+	$self->{_help} = "Copy multiple sources on tape.";
 	bless( $self, $class );
 	return( $self );
 };

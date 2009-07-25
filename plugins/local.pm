@@ -47,7 +47,8 @@ sub new
 		_destfree	=> 0,
 		_destsize	=> 0,
 		_required	=> {},
-		_optional	=> {}
+		_optional	=> {},
+		_help	=> undef
 	};
 	$self->{_required} = 
 				{
@@ -62,8 +63,9 @@ sub new
 					histdirs=>"Numeric value indicating the number of historical copies to be kept on destination. (A value of -1 creates a new folder for every run.)",
 					options=>"Options to pass to the \"rsync\" command used to copy the files.",
 					excludelist=>"List of files/folders to exclude from copy.",
-					mtime=>"[n] If the integer n does not have sign this means exactly n 24-hour periods (days) ago, 0 means today.+n: if it has plus sing, then it means \"more then n 24-hour periods (days) ago\", or older then n, if it has the minus sign, then it means less than n 24-hour periods (days) ago (-n), or younger then n."
+					mtime=>"[n] Exclude by time. If the integer n does not have sign this means exactly n 24-hour periods (days) ago, 0 means today.+n: if it has plus sing, then it means \"more then n 24-hour periods (days) ago\", or older then n, if it has the minus sign, then it means less than n 24-hour periods (days) ago (-n), or younger then n. Can be used with excludelist=."
 				};
+	$self->{_help} = "Copy files from multiple sources to destination. Complete path is used to recreate dirctory structure on destination.";
 	bless( $self, $class );
 	return( $self );
 };
@@ -75,7 +77,7 @@ sub new
 sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 {
 	use File::Copy;
-	use File::Temp qw/ tempfile tempdir /;
+	use File::Temp qw/ mktemp /;
 	my ( $self ) = shift;
 	my ( $source, $options );
 	my ( $status ) = 0;
@@ -127,15 +129,16 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 			}
 			else
 			{
-				$options = '--recursive --copy-links --verbose --times --delete-after --modify-window=3 --no-whole-file --stats';
+				$options = '--recursive --no-whole-file --copy-links --relative --verbose --times --delete-after --delete-excluded --delete --modify-window=3 --no-whole-file --stats';
 			};
 			my ( $cmd );
 			# Start file date filter
-			my ( $filelist );
+			my ( $filelist, $tempdir );
 			if ( defined $self->{_param}{'mtime'} )
 			{
-				$filelist = tempfile( "/BCKXXXXXX.lst");
-				$cmd = "find $source -mtime $self->{_param}{'mtime'} -fprint $filelist";
+				
+				$filelist = mktemp( "/var/tmp/bckfilterXXXXXX");
+				$cmd = "find $source -mtime $self->{_param}{'mtime'} -type f -follow -fprint $filelist";
 				$self->{_writelog}->( "Command : " . $cmd , 3 );
 				open (DATA, "$cmd 2>&1 |" ) or $status = 1;
 				#read stdin
@@ -147,7 +150,7 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 						$self->{_writelog}->( $line , 3 );
 					};
 					$self->{_writelog}->( "Done filtering files by date.", 1 );
-					$options .= " --files-from=$filelist";
+					$options = "--exclude-from=$filelist " . $options;
 				}
 				else
 				{

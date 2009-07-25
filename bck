@@ -136,7 +136,7 @@ sub Main # () -> ()
 				if ( $status == 0 )
 				{
 					#section ok
-					$section->WriteLog( "Section [" . $section->{_section} . "]  (" . &HumanBytes( $section->GetSize() )  . " ) ok." , 1);
+					$section->WriteLog( "Section [" . $section->{_section} . "]  (" . &HumanBytes( $section->GetSize() )  . ") ok." , 1);
 					$section->WriteDb();
 				}
 				else
@@ -1105,30 +1105,42 @@ sub PrintHelp # ( $pluginhelp) -> ()
 	};
 	return( 0 ) unless ( $pluginhelp eq 2 );
 	my ( $cols ) = 80;
+	my ( $formathelp ) = "format help= \n"
+				. '|--Description:   ^' . '<' x ( $cols - 18 ) . "|\n"
+				. '$value' . "\n"
+				. '|                 ^' . '<' x ( $cols - 20) . '~~' . "|\n"
+				. '$value' . "\n"
+				. '.' . "\n";
 	my ( $formatreq ) = "format required = \n"
-				. '|@>>>>>>>>>>>> => ^' . '<' x ( $cols - 16 ) . "|\n"
+				. '|@>>>>>>>>>>>> => ^' . '<' x ( $cols - 18 ) . "|\n"
 				. '$key, $value' . "\n"
-				. '|                 ^' . '<' x ( $cols - 18) . '~~' . "|\n"
+				. '|                 ^' . '<' x ( $cols - 20) . '~~' . "|\n"
 				. '$value' . "\n"
 				. '.' . "\n";
 	my ( $formatopt ) = "format optional = \n"
-				. '|@>>>>>>>>>>>> => ^' . '<' x ( $cols - 16 ) . "|\n"
+				. '|@>>>>>>>>>>>> => ^' . '<' x ( $cols - 18 ) . "|\n"
 				. '$key, $value' . "\n"
-				. '|                 ^' . '<' x ( $cols - 18) . '~~' . "|\n"
+				. '|                 ^' . '<' x ( $cols - 20) . '~~' . "|\n"
 				. '$value' . "\n"
 				. '.' . "\n";
 	foreach $module ( @modules )
 	{
-		print "\n|--Plugin:\t $module\n";
+		print "\n|--Plugin:\t  $module\n";
 		# Try to load the plugin
 		my ( $plugin ) = "$plugindir$module";
 		if ( require "$plugin" )
 		{
+			my( $do ) = Plugin->new( 0, 0, 0, {0, 0} );
 			# Print out the help info for the plugin
 			my ( $key );
-			 
-			my( $do ) = Plugin->new( 0, 0, 0, {0, 0} );
-			print "|-- Required:                                                                    --|\n";
+			 if ( defined $do->{_help} )
+			 {
+				my ( $value ) = $do->{'_help'};
+				eval $formathelp;
+				$~ = 'help';
+				write;
+			 };
+			print "|--Required:                                                                   --|\n";
 			foreach $key ( keys %{$do->{_required}} )
 			{
 				my ( $value ) = ${$do->{'_required'}}{$key};
@@ -1136,7 +1148,7 @@ sub PrintHelp # ( $pluginhelp) -> ()
 				$~ = 'required';
 				write;
 			};
-			print "|-- Optional:                                                                    --|\n";
+			print "|--Optional:                                                                   --|\n";
 			foreach $key ( keys %{$do->{_optional}} )
 			{
 				my ( $value ) = ${$do->{'_optional'}}{$key};
@@ -1144,7 +1156,7 @@ sub PrintHelp # ( $pluginhelp) -> ()
 				$~ = 'optional';
 				write;
 			};
-			print "|----------------------------------------------------------------------------------|\n";
+			print "|--------------------------------------------------------------------------------|\n";
 		};
 	};
 	return( 0 );
@@ -4098,13 +4110,13 @@ sub WriteLog
 	my ( $text, $lvl ) = @_;
 	if ( defined $self->{_logdate} )
 	{
-		$self->DebugPrint( $text );
+		$self->DebugPrint( "[" . time . "] - " . $text );
 		if ( $lvl lt "2" )
 		{
-			$self->VerbosePrint( $text );
+			$self->VerbosePrint( "[" . time . "] - " . $text );
 		};
 		open ( LOGFILE, ">>" . $gsection->GetLogDir() . '/' . $self->{_section} . '.' . $self->{_logdate} . ".log" );
-	   	print LOGFILE $text . "\n";
+	   	print LOGFILE "[" . time . "] - " . $text . "\n";
 		close( LOGFILE );
 	};
 };
@@ -4114,7 +4126,7 @@ sub WriteList
 	my ( $text ) = @_;
 	if ( defined $self->{_logdate} )
 	{
-		$self->DebugPrint( $text );
+		$self->DebugPrint( "[" . time . "] - " . $text );
 		open ( LOGFILE, ">>" . $gsection->GetLogDir() . '/' . $self->{_section} . '.' . $self->{_logdate} . ".lst" );
 	   	print LOGFILE $text . "\n";
 		close( LOGFILE );

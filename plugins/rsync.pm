@@ -49,7 +49,8 @@ sub new
 		_destfree	=> 0,
 		_destsize	=> 0,
 		_required	=> {},
-		_optional	=> {}
+		_optional	=> {},
+		_help	=> undef
 	};
 	$self->{_required} =	
 				{
@@ -63,6 +64,7 @@ sub new
 					options=>"Options to pass to the \"rsync\" command used to copy the files.",
 					excludelist=>"List of files/folders to exclude from copy."
 				};
+	$self->{_help} = "Run rsync to copy multiple sources to a destination folder. Complete path is used to recreate dirctory structure on destination.";
 	bless( $self, $class );
 	return( $self );
 };
@@ -102,7 +104,7 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 		}
 		else
 		{
-			$options = '--recursive --verbose --rsh=ssh  --delete-after --modify-window=3 --times --stats --devices --specials --times --perms --owner --group --links';
+			$options = '--recursive --no-whole-file --relative --verbose --rsh=ssh  --delete-after --modify-window=3 --times --stats --devices --specials --times --perms --owner --group --links';
 		};
 		my $cmd = 'rsync ' . $options . ' ' . $excludelist . ' "' . $source . '" ' . $self->{_param}{'dest'} . '/' . $self->{_section} . '/';
 		$self->{_writelog}->( "Command : " . $cmd , 3 );

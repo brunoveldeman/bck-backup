@@ -46,7 +46,8 @@ sub new
 		_status   	=> 0,
 		_infotext	=> undef,
 		_required	=> {},
-		_optional	=> {}
+		_optional	=> {},
+		_help	=> undef
 	};
 	$self->{_required} =	
 				{	
@@ -58,6 +59,7 @@ sub new
 				{ 
 					proc=>"[yes|no] If set to yes will also log info from proc"
 				};
+	$self->{_help} = "Check raid status";
 	bless( $self, $class );
 	return( $self );
 };
