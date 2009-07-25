@@ -49,13 +49,14 @@ sub new
 		_destfree	=> 0,
 		_destsize	=> 0,
 		_required	=> {},
-		_optional	=> {}
+		_optional	=> {},
+		_help	=> undef
 	};
 	$self->{_required} =	
 				{
 					type=>"firebird",
 					name=>"Brief description of the operation. ex.: \"Main database\"",
-					sourcelist=>"Databases to include in copy. Only one can be specified",
+					sourcelist=>"Database to include in copy. Only one can be specified",
 					dest=>"Destination folder."
 				};
 	$self->{_optional} = 	
@@ -63,6 +64,7 @@ sub new
 					histdirs=>"Numeric value indicating the number of historical copies to be kept on destination. (A value of -1 creates a new folder for every run.)",
 					options=>"Options to pass to the \"gbak\" command used to backup the database."
 				};
+	$self->{_help} = "Create hot backup of firebird database.";
 	bless( $self, $class );
 	return( $self );
 };

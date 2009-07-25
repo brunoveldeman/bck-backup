@@ -47,7 +47,8 @@ sub new
 		_status   	=> 0,
 		_infotext	=> undef,
 		_required	=> {},
-		_optional	=> {}
+		_optional	=> {},
+		_help	=> undef
 	};
 	$self->{_required} =	
 				{	# This is a named hash with the required options and it's description.
@@ -64,6 +65,7 @@ sub new
 					# Ex.: histdirs
 					myoption=>"My optional option for this plugin."
 				};
+	$self->{_help} = "Description of the plugin goes here";
 	bless( $self, $class );
 	return( $self );
 };
