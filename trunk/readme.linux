@@ -2,21 +2,12 @@
 	bck-backup for Linux 
 -------------------------------
 
-!!! UPDATE NEEDED TO REFLECT NEW PLUGIN SYSTEM !!!
-!!! EVERY PLUGIN WILL HAVE IT'S README !!!
-
 1. Linux instalation.
     
 1.1 Install the following packages/tools:
 
-	mt-st		: for tape drive status and eject
-	tar		: to write to tapes
-	rsync		: to copy files
-	cdrecord	: to write cd's (not implemented)
-	dvd+rw-tools	: to write dvd's (not implemented)
 	perl		: the perl language interpreter
-	wget		: used by selfupdate
-	rsyncrypto	: to do the cyphering (experimental)
+	wget		: used by selfupdate ( This should be changed and the downloading should be handeled in perl code. )
     
 1.2 Download bck-backup.
 
@@ -28,12 +19,30 @@
 	
 	#>svn co https://bck-backup.svn.sourceforge.net/svnroot/bck-backup bck-backup
 
-1.3 Extract files from the tar file
+2 Instalation
 
-	#>tar xvzf bck-backup.tar.gz
+2.1 Run install.sh
 
-2. Copy files.
+	If we download the package, instalation is done by the installer and we can skip the copy files instructions.
+	
+	#>./istall.sh
+	
+	The package creates the configuration files in the /etc/bck folder with example added to its name to avoid
+	accidentaly overwriting our configuration files.
+	
+	By default, no files will be overwritten, using the -c option, we can force the install to overwrite all files.
 
+2.2 Copy files manualy.
+
+	
+	If we downloaded the files from the svn, we will have to set it up manualy.
+	
+	There are two main folders, trunk and stable. Check out the readme in each folder for information.
+	
+	./trunk/ will hold the latest development release, and it can be broken.
+	
+	./stable/ will hold the lasted know working and more or less tested release, but will be outdated.
+	
 	Correct locations for all files:
 		bck and modules: /usr/lib/bck
 		plugins: /usr/lib/bck/plugins
@@ -198,57 +207,61 @@
 8.2 --help
 
 	Show brief instructions on how to use the command line options. Cannot be used with other options.
+
+8.3 --pluginhelp
+
+	Show brief instructions on how to use the plugins and their options. Cannot be used with other options.
 	
-8.3 --do=
+8.4 --do=
 
 	This is the option that actualy executes the sections defined. We can include more then one section
 	in one line. Sections have to be seperated by a comma ','. Ex.: do=section1,section2
 	If we specify more then one --do= option, only the last one will be used, ignoring all others.
 	
-8.4 --mail
+8.5 --mail
 
 	We will use this option to send mail reports as defined in the [mail] section. If we use this together
 	with other options, the reports will be send after completion.
 	Mail is only send if the database file has pending reports
 	
-8.5 --report
+8.6 --report
 
 	Sends reports to report server, if no reports are pending, only sends a header line to confirm that
 	it's still alive. If we use it together with other options, reports will be send after completion.
 	  
-8.6 --config-file=
+8.7 --config-file=
 
 	Sometimes we might want to use several different configuration files, with this options we can define
 	path and filename of the configuration file. If not defined, it defaults to '/etc/bck/bck.config' .
 	The special named configuration file called '/etc/bck/bck.default' will always be read if it exists.
 	
-8.7 --verbose
+8.8 --verbose
 
 	By default, bck-backup is extremely quiet, with this options, some information about the process will
 	print on standard output.
 	
-8.8 --debug
+8.9 --debug
 
 	For debuging purposes, print all relevant information on standard output about the process. If --verbose
 	is also used, it will be ignored.
 	
-8.9 --httpserver
+8.10 --httpserver
 
 	Used for the web interface.
 
-8.10 --reportserver
+8.11 --reportserver
 
 	Used for the report server.
 
-8.11 --update
+8.12 --update
 
 	Start selfupdate if correctly configured. It will download bck.backup from the update server and 
 	rename the old version appending the verion number.
 
-8.12 --check
+8.13 --check
 
 	Check the configuration file structure and report any errors.
-	Also test most [global] section settings, also will create logdir and spooldir if needed.
+	Also test most [global] section settings, also will create logdir and dbdir if needed.
 
 9. The configuration files
 
@@ -256,23 +269,24 @@
 
 	[global]
 	lang= 			[English]	For future use, defines the language of the web interface and mail reports.
-	client=			[name]	This identifies the configuration and is visible in the mail reports and report server header lines.
-	sysloglevel=	[0-5]		For future use, defines what will be logged to the syslog.
+	client=			[name]		This identifies the configuration and is visible in the mail reports and report server header lines.
+	sysloglevel=		[0-5]		For future use, defines what will be logged to the syslog.
 
 	smtpserver=		[hostname]	Server to use as smtp server for mail reports.
-	smtpport=			[portnr]	Port to use to communicate to smpt server, normaly "25".
+	smtpport=		[portnr]	Port to use to communicate to smpt server, normaly "25".
 	smtpuser=		[mail_account] Account name for authentication on smtp server.
 	smtppass=mail		[password]	Password for authentication on smtp server.
 	smtpfrom=		["User Name" <user@mail.address>] From line for mail reports.
-
-	ntpserver=			[hostname]	ntp server to use,
+	(Mail related entries should be moved to [mail] section.)
+	
+	ntpserver=		[hostname]	ntp server to use,
 	
 	ipwebaddress=		[url]		url to use to get a public ip from. If omitted, not used. (not http://)
 								ex.: whatismyip.com/automation/n09230945.asp
 
 	logdir=			[path]		path to log directory. Default is "/var/log/bck".
 	dbdir=			[path]		path to statusfile derectory. Default is "/var/spool/bck".
-	tempdir=			[path]		path to temp diretory. Default is "/var/tmp". This is where temporal files
+	tempdir=		[path]		path to temp diretory. Default is "/var/tmp". This is where temporal files
 								for cyphering are created, make sure you have space available.
 
 	oktag=			[name]		Tag used in subject line when all section are ok. default: "backup"
@@ -292,7 +306,7 @@
 9.3 The [update] section
 
 	[update]
-	url=				[url]		URL to update server. ex:. http://bck-backup.svn.sourceforge.net/viewvc/bck-backup/stable/bck
+	url=			[url]		URL to update server. ex:. http://bck-backup.svn.sourceforge.net/viewvc/bck-backup/stable/bck
 	user=			[username]	Authentification for update server (if needed).
 	password=		[password]	Authentification for update server (if needed).
 	
@@ -302,9 +316,9 @@
 	server=			[hostname]	Hostname of report server.
 	port=			[portnr]	Portnumber of report server.
 	password=		[password]  Password to access server.
-	serverpassword=	[password]	Server password when running as report server, if left blank, no reports will be accepted at all.
+	serverpassword=		[password]	Server password when running as report server, if left blank, no reports will be accepted at all.
 	
-9.5	The [mail] section
+9.5 The [mail] section
 
 	[mail]
 	mailaddres=level,mailtype ex.: admin@yoursite.com=4,html
@@ -317,7 +331,7 @@
 		mailtype	[html/plain/()] 
 			html	Send mail with nice html formatted report.
 			plain	Send mail with simple text report.
-			()		Send mail in html and plaintext using multipart.
+			()	Send mail in html and plaintext using multipart.
 
 9.6 The [backup] sections
 
@@ -356,7 +370,7 @@
 	
 10. The database file
 
-10.1 Data file location.
+10.1 Data file location
 
 	Default location for the database file is: /var/lib/bck
 	We can change this in the configuration file, the default name of the configuration file is status.db,
@@ -365,21 +379,35 @@
 	This is done so every configuration file has its own database file.
 	The default configuration file, default.config is never used for naming.
 
-10.2 Status database field def:
+10.2 Database field definitions
 
- |Status bits|,|Section Name|,|Section Description|,|Timestamp|,|Status|,|Size|,|Dest size|,|Dest free|,|infotext|
-      |                                                 |          |       |         |         |             -> Short description of what was done
-      |                                                 |          |       |         |         -> Bytes free on destination
-      |                                                 |          |       |         -> Size of destination in bytes
-      |                                                 |          |       -> Size of setion
-      |                                                 |          -> Text field status [OK, ERROR, Warning]
-      |                                                 -> Internal timestamp format ddmmyyyyhhmm
-      -> 8 bits [7 6 5 4 3 2 1 0]
-         Bit 0 : 0-Not send by mail		1-Send by mail			(1)
-         Bit 1 : 0-Not send to remote server	1-Send to remote server		(2)
-         Bit 2 : 0-Line				1-Header			(4)
-         Bit 3&4 : 00-OK  01-Warning  10-ERROR  11-Not Available [Defines color used in Status column] (8&16)
-         Bit 5 : 0-Finished		1-In progress				(32)
-         Bit 6 : 0-No alarm             1-Alarm					(64)
-         Bit 7 : 0-Local		1-Remote				(128)
-	 
+	The internal database uses a csv type file. 
+	
+	The records have 9 fields, if more fields are present, they will be ignored when reading, and they will be
+	deleted whenever the database field needs updating.
+
+	|Status bits|,|Section Name|,|Section Description|,|Timestamp|,|Status|,|Size|,|Dest size|,|Dest free|,|infotext|
+	      |                                                 |          |       |         |         |             |
+	      |                                                 |          |       |         |         |             -> Short description of what was done
+	      |                                                 |          |       |         |         -> Bytes free on destination
+	      |                                                 |          |       |         -> Size of destination in bytes
+	      |                                                 |          |       -> Size of setion
+	      |                                                 |          -> Text field status [OK, ERROR, Warning]
+	      |                                                 -> Internal timestamp format ddmmyyyyhhmm
+	      -> 8 bits [7 6 5 4 3 2 1 0]
+		 Bit 0 : 0-Not send by mail		1-Send by mail			(1)
+		 Bit 1 : 0-Not send to remote server	1-Send to remote server		(2)
+		 Bit 2 : 0-Line				1-Header			(4)
+		 Bit 3&4 : 00-OK  01-Warning  10-ERROR  11-Not Available [Defines color used in Status column] (8&16)
+		 Bit 5 : 0-Finished		1-In progress				(32)
+		 Bit 6 : 0-No alarm             1-Alarm					(64)
+		 Bit 7 : 0-Local		1-Remote				(128)
+		 
+	File locking (flock) is used when adding or updating records, any program wanting to read and/or write from the
+	database should respect file locking. File locking is needed because when running as a report server, several
+	instances might be executing at the same time and could overwrite data written simultaneously.
+	
+11 The plugins
+
+	The plugins are dynamicaly loaded when needed. The method used in the plugin system is to name the object of all plugins
+	equaly, the backdraw is that the redefine warnings have to be truned off.
