@@ -59,7 +59,7 @@ sub new
 				};
 	$self->{_optional} = 
 				{ 	
-					maxsize=>"Maximum bytes for copy, will no copy if larger.",
+					#maxsize=>"Maximum bytes for copy, will no copy if larger.",
 					histdirs=>"Numeric value indicating the number of historical copies to be kept on destination. (A value of -1 creates a new folder for every run.)",
 					options=>"Options to pass to the \"rsync\" command used to copy the files.",
 					excludelist=>"List of files/folders to exclude from copy.",
@@ -105,7 +105,9 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 	#loop sources
 	foreach $source (@sources)
 	{
-		#check if source exists
+		# Make sure source ends with "/"
+		$source .= "/" unless $source =~ m/\/$/;
+		# Check if source exists
 		if ( -e $source )
 		{
 			#build excludelist string

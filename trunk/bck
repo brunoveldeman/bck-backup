@@ -1056,20 +1056,21 @@ sub PrintHelp # ( $pluginhelp) -> ()
 	print "	--verbose			: Verbose\n";
 	print "	--config-file=[/mypath/myconfig.file]\n";
 	print "	--update			: Update from http/ftp server.\n";
-	print "	--httpserver			: Run bck in http server mode for use with inetd\n";
-	print "	--reportserver			: Report in to central cerver.\n";
+	print "	--httpserver			: Run bck in http server mode for use with inetd.\n";
+	print "	--reportserver			: Run bck in report server mode for use with inetd.\n";
+	print "	--report			: Report in to central server.\n";
 	print "	--mail				: Send pending reports by e-mail\n";
-	print "	--check				: Check configuration file\n";
-	print "	--debug				: Debugging verbosity\n";
-	print "	--version			: Show version\n";
+	print "	--check				: Check configuration file.\n";
+	print "	--debug				: Debugging verbosity.\n";
+	print "	--version			: Show version.\n";
 	print "	--do=[block1[,block2...]]	: Execute block1, block2...\n";
-	print "	--help|?			: Show this help\n";
-	print "	--pluginhelp			: Show help for plugins\n\r";
+	print "	--help|?			: Show this help.\n";
+	print "	--pluginhelp			: Show help for plugins\n.";
 	use FindBin qw( $Bin $Script );
 	use File::Basename;
 	my ( $path ) = $Bin;
 	my ( $name ) = $Script;
-		if ( -l "$path/$name" )
+	if ( -l "$path/$name" )
 	{
 		my ( $link ) = readlink "$path/$name";
 		$path = dirname( $link );
@@ -1106,21 +1107,21 @@ sub PrintHelp # ( $pluginhelp) -> ()
 	return( 0 ) unless ( $pluginhelp eq 2 );
 	my ( $cols ) = 80;
 	my ( $formathelp ) = "format help= \n"
-				. '|--Description:   ^' . '<' x ( $cols - 18 ) . "|\n"
+				. '|--Description:   ^' . '<' x ( $cols - 20 ) . "|\n"
 				. '$value' . "\n"
-				. '|                 ^' . '<' x ( $cols - 20) . '~~' . "|\n"
+				. '|                 ^' . '<' x ( $cols - 22 ) . '~~' . "|\n"
 				. '$value' . "\n"
 				. '.' . "\n";
 	my ( $formatreq ) = "format required = \n"
-				. '|@>>>>>>>>>>>> => ^' . '<' x ( $cols - 18 ) . "|\n"
+				. '|@>>>>>>>>>>>> => ^' . '<' x ( $cols - 20 ) . "|\n"
 				. '$key, $value' . "\n"
-				. '|                 ^' . '<' x ( $cols - 20) . '~~' . "|\n"
+				. '|                 ^' . '<' x ( $cols - 22 ) . '~~' . "|\n"
 				. '$value' . "\n"
 				. '.' . "\n";
 	my ( $formatopt ) = "format optional = \n"
-				. '|@>>>>>>>>>>>> => ^' . '<' x ( $cols - 18 ) . "|\n"
+				. '|@>>>>>>>>>>>> => ^' . '<' x ( $cols - 20 ) . "|\n"
 				. '$key, $value' . "\n"
-				. '|                 ^' . '<' x ( $cols - 20) . '~~' . "|\n"
+				. '|                 ^' . '<' x ( $cols - 22 ) . '~~' . "|\n"
 				. '$value' . "\n"
 				. '.' . "\n";
 	foreach $module ( @modules )
@@ -1140,7 +1141,7 @@ sub PrintHelp # ( $pluginhelp) -> ()
 				$~ = 'help';
 				write;
 			 };
-			print "|--Required:                                                                   --|\n";
+			print "|--Required:                                                                 --|\n";
 			foreach $key ( keys %{$do->{_required}} )
 			{
 				my ( $value ) = ${$do->{'_required'}}{$key};
@@ -1148,7 +1149,7 @@ sub PrintHelp # ( $pluginhelp) -> ()
 				$~ = 'required';
 				write;
 			};
-			print "|--Optional:                                                                   --|\n";
+			print "|--Optional:                                                                 --|\n";
 			foreach $key ( keys %{$do->{_optional}} )
 			{
 				my ( $value ) = ${$do->{'_optional'}}{$key};
@@ -1156,7 +1157,7 @@ sub PrintHelp # ( $pluginhelp) -> ()
 				$~ = 'optional';
 				write;
 			};
-			print "|--------------------------------------------------------------------------------|\n";
+			print "|------------------------------------------------------------------------------|\n";
 		};
 	};
 	return( 0 );
