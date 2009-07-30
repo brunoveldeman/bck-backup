@@ -126,13 +126,13 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 			close DATA;
 			$status = $? >> 8;
 			$self->{_writelog}->( "Exit status : " . $status , 2 );
-		}
-		else
-		{
-			$self->{_writelog}->( "$self->{_param}{'dest'} does not look like a tape device.", 0 );
-			$self->{_infotext} .= "-$self->{_param}{'dest'} does not look like a tape device.";
 		};
 		 # End check tape status
+	}
+	else
+	{
+		$self->{_writelog}->( "$self->{_param}{'dest'} does not look like a tape device.", 0 );
+		$self->{_infotext} .= "-$self->{_param}{'dest'} does not look like a tape device.";
 	};
 	if ( $online ne 0 )
 	{
