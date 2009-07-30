@@ -94,7 +94,8 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 			$self->{_writelog}->( "Source $source does not exist", 3 );
 		};
 	};
-	if ( -d $self->{_param}{'dest'} )
+	# Check if dest is caracter device.
+	if ( -c $self->{_param}{'dest'} )
 	{
 		# Check tape status
 		my $cmd = "mt -f " . $self->{_param}{'dest'} . " status";
@@ -109,7 +110,7 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 				chomp($line);
 				$self->{_writelog}->( $line , 3 );
 				#  Check for ONLINE
-				if ( $line =~ m/ONLINE/ )
+				if ( $line =~ m/ONLINE/i )
 				{
 					$online = 1;
 					$self->{_writelog}->( "Tape " . $self->{_param}{'dest'} . " online.", 1 );
@@ -124,8 +125,13 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 			};
 			close DATA;
 			$status = $? >> 8;
+			$self->{_writelog}->( "Exit status : " . $status , 2 );
+		}
+		else
+		{
+			$self->{_writelog}->( "$self->{_param}{'dest'} does not look like a tape device.", 0 );
+			$self->{_infotext} .= "-$self->{_param}{'dest'} does not look like a tape device.";
 		};
-		$self->{_writelog}->( "Exit status : " . $status , 2 );
 		 # End check tape status
 	};
 	if ( $online ne 0 )
