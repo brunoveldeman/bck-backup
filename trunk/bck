@@ -1213,6 +1213,7 @@ sub Update # (configfile) -> ()
 	use File::Basename;
 	use FindBin qw( $Bin $Script );
 	$path = $Bin;
+	$path .= "/" unless $path =~ m/\/$/;
 	$name = $Script;
 	my ( $configfilename ) = $cmdln->GetConfigFileName;
 	if ( -e $configfilename )
@@ -1229,24 +1230,25 @@ sub Update # (configfile) -> ()
 	};
 	if ( defined $cfg )
 	{
-		$url		= $cfg->val('update', 'url');
-		$user	= $cfg->val('update', 'user');
-		$pass	= $cfg->val('update', 'password');
+		$url = $cfg->val('update', 'url');
+		$url .= "/" unless $url =~ m/\/$/;
+		$user = $cfg->val('update', 'user');
+		$pass = $cfg->val('update', 'password');
 	};
 	if ( -l "$path/$name" )
 	{
-		my ( $link ) = readlink "$path/$name";
+		my ( $link ) = readlink "$path$name";
 		$path = dirname( $link );
 		$name = basename( $link );
 	};
 	my ( @modules );
 	push( @modules, $name );
-	my ( $dir ) = $path . "/plugins";
+	my ( $dir ) = $path . "plugins";
 	if ( opendir ( DIR, $dir ) )
 	{
 		while( ( my $filename = readdir(DIR)))
 		{
-			push( @modules, "/plugins/$filename") unless !( $filename =~ m/.pm$/);
+			push( @modules, "plugins/$filename") unless !( $filename =~ m/.pm$/);
 		}
 		closedir(DIR);
 	}
@@ -1258,7 +1260,7 @@ sub Update # (configfile) -> ()
 	{
 		# Check the installed version.
 		undef $installed;
-		open FILE, "<$path/$module";
+		open FILE, "<$path$module";
 		while ( <FILE>)
 		{
 			if ( /my.*\$version.*=.*\"(\d+\.\d+\.\d+)\"/ )
@@ -1272,20 +1274,20 @@ sub Update # (configfile) -> ()
 		print "Preparing to update [$module] version: $installed...\n";
 		if ( ( defined $url ) and ( defined $user ) and ( defined $pass ) )
 		{
-			$cmd = "wget $url/$module --quiet --user=$user --password=$pass --output-document=$path/$module.new";
+			$cmd = "wget $url$module --quiet --user=$user --password=$pass --output-document=$path$module.new";
 		}
 		elsif( defined $url )
 		{
-			$cmd = "wget $url/$module --quiet --output-document=$path/$module.new";
+			$cmd = "wget $url$module --quiet --output-document=$path$module.new";
 		};
 		if ( defined $cmd )
 		{
 			$result = `$cmd`;
-			if ( -e  "$path/$module.new" )
+			if ( -e  "$path$module.new" )
 			{
 				# Check the downloaded version.
 				undef $downloaded;
-				open FILE, "<$path/$module.new";
+				open FILE, "<$path$module.new";
 				while ( <FILE>)
 				{
 					if ( /my.*\$version.*=.*\"(\d+\.\d+\.\d+)\"/ )
@@ -1301,24 +1303,24 @@ sub Update # (configfile) -> ()
 				if ( &ConvertVersionString($downloaded) gt &ConvertVersionString($installed) )
 				{
 					print "Installing new [$module] version: $downloaded\n";
-					if ( -e "$path/$module.$installed" )
+					if ( -e "$path$module.$installed" )
 					{
-						unlink ("$path/$module.$installed");
+						unlink ("$path$module.$installed");
 					};
-					chmod 0755, "$path/$module.new";
-					move ("$path/$module","$path/$module.$installed");
-					move ("$path/$module.new","$path/$module");
+					chmod 0755, "$path$module.new";
+					move ("$path$module","$path$module.$installed");
+					move ("$path$module.new","$path$module");
 					print "$module succesfully updated to version $downloaded\n";
 				}
 				elsif ( &ConvertVersionString($downloaded) lt &ConvertVersionString($installed) )
 				{
 					print "No updates available for [$module], instaled version ($installed) is newer then downloaded version ($result).\n";
-					unlink ("$path/$module.new");
+					unlink ("$path$module.new");
 				}
 				else
 				{
 					print "Already up to date [$module].\n";
-					unlink ("$path/$module.new");
+					unlink ("$path$module.new");
 				};
 			}
 			else
