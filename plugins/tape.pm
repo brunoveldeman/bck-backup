@@ -212,7 +212,7 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 			
 		};
 		# End tar command
-		if ( -d $self->{_param}{'dest'} )
+		if ( -c $self->{_param}{'dest'} )
 		{
 			# mt rewoffl if eject = yes
 			$self->{_param}{'eject'} = "no" unless defined  $self->{_param}{'eject'};
