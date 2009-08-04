@@ -41,7 +41,8 @@ sub new
 		_section	=> shift,
 		_writelog	=> shift, 
 		_writelist	=> shift,
-		_param	=> @_,
+		_param		=> shift,
+		_globvar	=> shift,
 		_status   	=> 0,
 		_infotext	=> undef,
 		_required	=> {},
@@ -115,6 +116,7 @@ sub Run # () -> ( $status, $errortext, $warningtext [, $size [, destfree [, dest
 					$online = 1;
 					$self->{_writelog}->( "Tape " . $self->{_param}{'dest'} . " online.", 1 );
 				};
+				# Check for CLN
 				if ( $line =~ m/CLN/ )
 				{
 					$cleaning = 1;

@@ -40,10 +40,11 @@ sub new
 		_section	=> shift,
 		_writelog	=> shift, 
 		_writelist	=> shift,
-		_param	=> @_,
+		_param		=> shift,
+		_globvar	=> shift,
 		_status   	=> 0,
 		_infotext	=> undef,
-		_size	=> 0,
+		_size		=> 0,
 		_destfree	=> 0,
 		_destsize	=> 0,
 		_required	=> {},
@@ -139,7 +140,7 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 			if ( defined $self->{_param}{'mtime'} )
 			{
 				
-				$filelist = mktemp( "/var/tmp/bckfilterXXXXXX");
+				$filelist = mktemp( "$self->{_globvar}{'tempdir'}/bckfilterXXXXXX");
 				$cmd = "find $source -mtime $self->{_param}{'mtime'} -type f -follow -fprint $filelist";
 				$self->{_writelog}->( "Command : " . $cmd , 3 );
 				open (DATA, "$cmd 2>&1 |" ) or $status = 1;
