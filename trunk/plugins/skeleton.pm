@@ -43,7 +43,8 @@ sub new
 		_section	=> shift,
 		_writelog	=> shift, 
 		_writelist	=> shift,
-		_param		=> @_,
+		_param		=> shift, # Parameters for the section from configuration file
+		_globvar	=> shift, # Global parameters from the configuration file.
 		_status   	=> 0,
 		_infotext	=> undef,
 		_required	=> {},

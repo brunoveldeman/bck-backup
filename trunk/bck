@@ -169,7 +169,7 @@ sub Main # () -> ()
 #
 # Sub MailReports :
 #
-# Input validation : OK (BV 11/9/2009)
+# Input validation : OK (BV 13/07/2009)
 #
 ##################################################################################
 sub MailReports
@@ -259,7 +259,7 @@ sub MailReports
 #
 # Sub CommReports :
 #
-# Input validation : OK (BV 11/9/2009)
+# Input validation : OK (BV 13/07/2009)
 #
 ##################################################################################
 sub CommReports # () -> ()
@@ -390,7 +390,7 @@ sub CommReports # () -> ()
 #
 # Sub GetIP :
 #
-# Input validation : OK (BV 11/9/2009)
+# Input validation : OK (BV 13/07/2009)
 #
 ##################################################################################
 sub GetIP # (webaddress) -> (myip)
@@ -402,6 +402,7 @@ sub GetIP # (webaddress) -> (myip)
 	# Return empty IP string if no webaddress is passed
 	return ("---.---.---.---") unless $webaddress;
 	# Clean up the $webaddress string
+	$webaddress =~ s/^http:\/\///;
 	$webaddress =~ s/[^\w\.-\/]//g;
 	my ( $host , $page ) = split( /\//, $webaddress, 2 );
 	$page = "" unless $page;
@@ -424,10 +425,10 @@ sub GetIP # (webaddress) -> (myip)
 		select STDOUT;
 		{
 			while ( defined ( my $line = <S> )  )
-				{
+			{
 				chomp($line);
 				$response .= $line;
-				}
+			}
 			close S;
 		};
 		$response =~ m/([\d]+\.[\d]+\.[\d]+\.[\d]+)/;
@@ -444,9 +445,75 @@ sub GetIP # (webaddress) -> (myip)
 };
 ##################################################################################
 #
+# Sub GetPage :
+#
+# Input validation : OK (BV 03/08/2009)
+#
+##################################################################################
+sub GetPage # (webaddress) -> (html)
+{
+	use Socket;
+	my ( $webaddress ) = @_;
+	my ( $html ) = "";
+	my ( $peer, $address );
+	# Return empty IP string if no webaddress is passed
+	return ("") unless $webaddress;
+	# Clean up the $webaddress string
+	$webaddress =~ s/^http:\/\///;
+	$webaddress =~ s/[^\w\.-\/]//g;
+	my ( $host , $page ) = split( /\//, $webaddress, 2 );
+	$html = "" unless $page;
+	$address = inet_aton( $host );
+	if ( not defined $address )
+	{
+		$html = "Cannot connect!";
+	}
+	else
+	{
+		$peer = sockaddr_in( 80, $address );
+		socket( S, PF_INET, SOCK_STREAM, getprotobyname('tcp') ) or return ("");
+		connect( S, $peer ) or return ("");
+		select(S);
+		$|=1;
+		# Quick and dirty way the get a http server server a page
+		print S "GET /$page HTTP/1.1\r\n";
+		print S "Host: $host\r\n";
+		print S "Accept: text/html\r\n";
+		print S "Connection: close\r\n\r\n";
+		select STDOUT;
+		{
+			while ( defined ( my $line = <S> )  )
+			{
+				$html .= $line;
+			}
+			close S;
+		};
+		# We only want the part between the <body> </body> tags.
+		# We remove newline, cariage returns and tabs.
+		$html =~ s/[\n]/bckNEWLINEbck/g;
+		$html =~ s/[\r\t]//g;
+		# We match then parts between the body tags, and as a body tag can have attributes, the first quantifier does a non greedy match until the ">".
+		# but only if body tags are present.
+		if ( $html =~ m/body.*?\>(.*)\<\/body/i )
+		{
+			$html = $1;
+		}
+		else
+		{
+			# We have no body tags, so get everything from the first "<" until the last ">"
+			$html =~ m/(\<.*\>)/i;
+			$html = $1;
+		};
+	# Newline back in place
+	$html =~ s/bckNEWLINEbck/\n/g;
+	};
+	return ($html);
+};
+##################################################################################
+#
 # Sub HumanBytes :
 # 
-# Input validation : OK (BV 11/9/2009)
+# Input validation : OK (BV 13/07/2009)
 #
 ##################################################################################
 sub HumanBytes
@@ -574,7 +641,7 @@ sub GetTime # () -> (mytime)
 #
 # Sub GetNtpTime : Get time from time server
 #
-# Input validation : OK (BV 11/9/2009)
+# Input validation : OK (BV 13/07/2009)
 #
 ##################################################################################
 sub GetNtpTime # (ntpservername) -> (mytime)
@@ -1013,7 +1080,7 @@ sub sendToServer # ( $socket, $message ) -> ()
 #
 # getEmailAddress : Get email from "Name" <my.email@my.host> line.
 #
-# Input validation : OK (BV 11/9/2009)
+# Input validation : OK (BV 13/07/2009)
 #
 ##################################################################################
 sub getEmailAddress # ( $test ) -> ( $email )
@@ -1202,7 +1269,7 @@ sub CreateConfig # (configfile) -> ()
 #
 # Sub Update : Update to new version from ftp server
 #
-# Input validation : OK (BV 11/9/2009)
+# Input validation : OK (BV 13/07/2009)
 #
 ##################################################################################
 sub Update # (configfile) -> ()
@@ -1339,7 +1406,7 @@ sub Update # (configfile) -> ()
 #
 # ConvertVersionString : Convert version string to int.
 #
-# Input validation : OK (BV 11/9/2009)
+# Input validation : OK (BV 13/07/2009)
 #
 ##################################################################################
 sub ConvertVersionString # ( $versionstring ) -> ( $versionnum )
@@ -1427,7 +1494,7 @@ sub SetConfigfile
 #
 # Parse request data from browser
 #
-# Input validation : OK (BV 11/9/2009)
+# Input validation : OK (BV 13/07/2009)
 #
 #######################################################################################
 sub ParseRequest
@@ -1454,7 +1521,7 @@ sub ParseRequest
 #
 # Handle http requests
 #
-# Input validation : OK (BV 11/9/2009)
+# Input validation : OK (BV 13/07/2009)
 #
 #######################################################################################
 sub Start # () -> ()
@@ -3927,6 +3994,7 @@ sub new
 		_type		=> undef,
 		_name		=> undef,
 		_param		=> {},
+		_globvar	=> {},
 		_status   	=> 0,
 		_infotext	=> undef,
 	   	_size	   	=> 0,
@@ -3969,7 +4037,12 @@ sub LoadSection
 		foreach my $par ( @param )
 		{
 			$self->{_param}{$par} = $cfg->val( $self->{_section}, $par );
-		}
+		};
+		my ( @globvar )	 = $cfg->Parameters("global");
+		foreach my $par ( @globvar )
+		{
+			$self->{_globvar}{$par} = $cfg->val( "global", $par );
+		};
 		return (0);
 	}
 	else
@@ -4223,7 +4296,7 @@ sub Run
 		# Try to load the plugin
 		if ( require "$plugin" )
 		{
-			my( $do ) = Plugin->new( $self->{_section}, sub{$self->WriteLog( $_[0], $_[1] )}, sub{$self->WriteList( $_[0] )}, $self->{_param} );
+			my( $do ) = Plugin->new( $self->{_section}, sub{$self->WriteLog( $_[0], $_[1] )}, sub{$self->WriteList( $_[0] )}, $self->{_param}, $self->{_globvar} );
 			foreach my $key ( keys %{$do->{_required}} )
 			{
 				if ( !defined ${$self->{_param}}{$key} )
@@ -4414,11 +4487,11 @@ sub SendReports
 	};
 	# Get mailtext from config file, if it points to a file, read it and get the text into $mailtext
 	my ( $cfg, $mastercfg );
-	my ( $configfilename ) = cmdln->GetConfigFileName();
+	my ( $configfilename ) = $cmdln->GetConfigFileName();
 	if ( -r "/etc/bck/bck.default" )
 	{
-		  $mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
-		  $cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
+		$mastercfg  = Config::IniFiles->new( -file => "/etc/bck/bck.default" );
+		$cfg = Config::IniFiles->new( -file => $configfilename, -import => $mastercfg );
 	}
 	else
 	{
@@ -4445,6 +4518,13 @@ sub SendReports
 			$mailtext = "...";
 		};
 	}
+	else
+	{
+		if ( $mailtext =~ m/^http:\/\// )
+		{
+			$mailtext = ::GetPage( $mailtext );
+		};
+	};
 	foreach $mail ( @{$self->{_mail}} )
 	{
 		my ( $address, $level, $mode ) = $mail->Get();
@@ -4521,10 +4601,14 @@ sub SendReports
 				."</tr>\n";
 			};
 			$plaintext .= "\n";
-			$plaintext .= $mailtext;
+			my ( $plainmailtext ) = $mailtext;
+			# Strip html for plain text
+			$plainmailtext =~ s/\<br\>/\n/gi;
+			$plainmailtext =~ s/<(?:[^>'"]*|(['"]).*?\1)*>//gs;
+			$plaintext .= "\n\n" . $plainmailtext . "\n\n";
 			$html .= "</tbody>\n" . "</table>\n" . "<br>\n";
 			$html .= "<br>\n";
-			$html .= "$mailtext<br>\n";
+			$html .= "<br><hr><br>$mailtext<br>\n";
 			if ( $mode  eq "html" )
 			{
 				$plaintext = "Only html reports for this e-mail";

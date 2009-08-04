@@ -290,11 +290,11 @@
 								for cyphering are created, make sure you have space available.
 
 	oktag=			[name]		Tag used in subject line when all section are ok. default: "backup"
-	errortag=			[name]		Tag used in subject line when at least one section has errors. default: "backup error"
+	errortag=		[name]		Tag used in subject line when at least one section has errors. default: "backup error"
 	warningtag=		[name]		Tag used in subject line when at least one section has warnings. default: "backup warning"
-	mailtext=			[text/path]	If it is a text or points to a file, will be apended at the end of all mail reports.
-								Default is /etc/bck/alert.txt, use this if you want make your customers aware of the
-								importance of backups in good condition.
+	mailtext=		[text/path/url]	If it is a text or points to a file or url, will be apended at the end of all mail reports.
+						Default is /etc/bck/alert.txt, use this if you want make your customers aware of the
+						importance of backups in good condition. (html tags are stripped for plaintext)
 
 9.2 The [http] section
 
