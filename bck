@@ -475,7 +475,7 @@ sub GetPage # (webaddress) -> (html)
 		connect( S, $peer ) or return ("");
 		select(S);
 		$|=1;
-		# Quick and dirty way the get a http server server a page
+		# Quick and dirty way the get a http server serve a page
 		print S "GET /$page HTTP/1.1\r\n";
 		print S "Host: $host\r\n";
 		print S "Accept: text/html\r\n";
@@ -4561,7 +4561,8 @@ sub SendReports
 				$notempty = 1;
 				my ( $section, $name, $timestamp, $status, $size, $destsize, $destfree ) = $tableentry->Get();
 				my ( $text ) = "[" . $section . "] " . $name;
-				my ( $date ) = substr( $timestamp, 0,2 ) . "/" . substr( $timestamp, 2,2 ) . "/" . substr( $timestamp, 4,4 ) . " " . substr( $timestamp, 8,2 ) . ":" . substr( $timestamp, 10,2 );
+				my ( $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst ) = localtime( $timestamp );
+				my ( $date ) = $mday . "/" . ( $mon + 1 ) . "/" . ( $year + 1900 ) . " " . sprintf( "%02d:%02d:%02d" , $hour, $min, $sec ) . " (" . ($wday) . ")";
 				$plaintext .= "| " . sprintf("%-35s" ,$text . " Date : " . $date );
 				$html .= "<tr>\n" . "<td style=\"vertical-align: top;\">$text<br>\n" . "</td>\n";
 				$html .= "<td style=\"vertical-align: top;\">$date<br>\n" . "</td>\n";
