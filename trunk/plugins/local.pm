@@ -106,8 +106,11 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 	#loop sources
 	foreach $source (@sources)
 	{
-		# Make sure source ends with "/"
-		$source .= "/" unless $source =~ m/\/$/;
+		# Make sure source ends with "/" if it's a directory
+		if ( -d $source )
+		{
+			$source .= "/" unless $source =~ m/\/$/;
+		};
 		# Check if source exists
 		if ( -e $source )
 		{
@@ -250,7 +253,7 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 	};
 	#end loop sources
 	#check status
-	if ( $self->{_status} eq 0 )
+	if ( $self->{_status} == 0 )
 	{
 		$self->{_writelog}->( "All files copied." , 1 );
 		$self->{_infotext} = "All files copied";
