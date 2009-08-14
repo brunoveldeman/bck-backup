@@ -135,7 +135,7 @@ sub Run # () -> ( $status, $statustext [, $size [, destfree [, destsize] ] ] )
 			}
 			else
 			{
-				$options = '--recursive --no-whole-file --copy-links --relative --verbose --times --delete-after --delete-excluded --delete --modify-window=3 --no-whole-file --stats';
+				$options = '--recursive --no-whole-file --copy-links --relative --verbose --times --delete-after --delete-excluded --delete --modify-window=3 --stats';
 			};
 			my ( $cmd );
 			# Start file date filter
