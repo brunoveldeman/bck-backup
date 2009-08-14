@@ -1341,11 +1341,11 @@ sub Update # (configfile) -> ()
 		print "Preparing to update [$module] version: $installed...\n";
 		if ( ( defined $url ) and ( defined $user ) and ( defined $pass ) )
 		{
-			$cmd = "wget $url$module --quiet --user=$user --password=$pass --output-document=$path$module.new";
+			$cmd = "wget --quiet --user=$user --password=$pass --output-document=$path$module.new $url$module";
 		}
 		elsif( defined $url )
 		{
-			$cmd = "wget $url$module --quiet --output-document=$path$module.new";
+			$cmd = "wget --quiet --output-document=$path$module.new $url$module";
 		};
 		if ( defined $cmd )
 		{
