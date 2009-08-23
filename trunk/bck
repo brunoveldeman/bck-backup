@@ -28,7 +28,7 @@ use strict;
 use English;
 use Config;
 # Program version
-my( $version ) = "3.0.0";
+my( $version ) = "0.3.0.0";
 # Exit state variable
 my( $state ) = 0;
 # Evaluate the command line parameters
@@ -403,7 +403,7 @@ sub GetIP # (webaddress) -> (myip)
 	return ("---.---.---.---") unless $webaddress;
 	# Clean up the $webaddress string
 	$webaddress =~ s/^http:\/\///;
-	$webaddress =~ s/[^\w\.-\/]//g;
+	$webaddress =~ s/[^\w\.\-\/]//g;
 	my ( $host , $page ) = split( /\//, $webaddress, 2 );
 	$page = "" unless $page;
 	$address = inet_aton( $host );
@@ -460,7 +460,7 @@ sub GetPage # (webaddress) -> (html)
 	return ("") unless $webaddress;
 	# Clean up the $webaddress string
 	$webaddress =~ s/^http:\/\///;
-	$webaddress =~ s/[^\w\.-\/]//g;
+	$webaddress =~ s/[^\w\.\-\/]//g;
 	my ( $host , $page ) = split( /\//, $webaddress, 2 );
 	$html = "" unless $page;
 	$address = inet_aton( $host );
