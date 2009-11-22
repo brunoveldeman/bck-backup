@@ -1,10 +1,7 @@
 #! /usr/bin/perl --
 # bck-backup.
-# Written & parts copyright by : Bruno Veldeman
-#
-# To simplify use, some modified modules have been copied into the code, this way no extra modules have to be installed.
-# I'll check these modules from time to time to ensure they stay more or less up to date. (Mail::Sendmail[2.09], Config::Inifiles[2.52])
-#
+# Written & parts Copyright (c) 2007-2009 by : Bruno Veldeman
+# 
 #################################################################################
 #										#
 #   This program is free software: you can redistribute it and/or modify	#
@@ -22,6 +19,30 @@
 #										#
 #################################################################################
 #
+#
+## To simplify use, some modified modules have been copied into the code, this way no extra modules have to be installed.
+## I'll check these modules from time to time to ensure they stay more or less up to date.
+##
+## This file incorporates work covered by the following copyright and  
+## permission notice:
+##
+#########
+## Mail::Sendmail[2.09] 
+## Copyright (c) 1998-2003 Simon Tneoh Chee-Boon
+## All rights reserved. This program is free software; you can redistribute 
+## it and/or modify it under the same terms as Perl itself.
+#########
+##
+#########
+## Config::Inifiles[2.52] 
+## The original code was written by Scott Hutton.
+## Then handled for a time by Rich Bowen (thanks!),
+## It is now managed by Jeremy Wadsack,
+## with many contributions from various other people.
+## This program is free software; you can redistribute it and/or 
+## modify it under the same terms as Perl itself.
+#########
+##
 #
 use warnings;
 use strict;
