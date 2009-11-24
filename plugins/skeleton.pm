@@ -1,7 +1,6 @@
 #!/usr/bin/perl
 # Skeleton.pm
-# This a a bck-backup plugin skeleton.
-# Use it to create plugins.
+# This a a bck-backup plugin skeleton. Use it to create plugins.
 #
 # Written & Copyright (c) by : Bruno Veldeman
 #
@@ -18,18 +17,17 @@
 #   GNU General Public License for more details.								#
 #																				#
 #   You should have received a copy of the GNU General Public License			#
-#   along with this program.  If not, see <http://www.gnu.org/licenses/>.		#
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>. 		#
 #																				#
 #################################################################################
 #
 #
-
 package Plugin;
 use strict;
 use warnings;
 no warnings 'redefine';
 # Plugin version
-my( $version ) = "0.0.1";
+my( $version ) = "0.0.0.1";
 #############################################################################
 #
 # Constructor
