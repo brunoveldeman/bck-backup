@@ -5,28 +5,29 @@
 # Written & Copyright (c) by : Bruno Veldeman
 #
 #################################################################################
-#										#
-#   This program is free software: you can redistribute it and/or modify	#
-#   it under the terms of the GNU General Public License as published by	#
-#   the Free Software Foundation, either version 3 of the License, or		#
-#   (at your option) any later version.						#
-#										#
-#   This program is distributed in the hope that it will be useful,		#
-#   but WITHOUT ANY WARRANTY; without even the implied warranty or		#
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the		#
-#   GNU General Public License for more details.				#
-#										#
-#   You should have received a copy of the GNU General Public License		#
-#   along with this program.  If not, see <http://www.gnu.org/licenses/>.	#
-#										#
+#																				#
+#   This program is free software: you can redistribute it and/or modify		#
+#   it under the terms of the GNU General Public License as published by		#
+#   the Free Software Foundation, either version 3 of the License, or			#
+#   (at your option) any later version.											#
+#																				#
+#   This program is distributed in the hope that it will be useful,				#
+#   but WITHOUT ANY WARRANTY; without even the implied warranty or				#
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the				#
+#   GNU General Public License for more details.								#
+#																				#
+#   You should have received a copy of the GNU General Public License			#
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>. 		#
+#																				#
 #################################################################################
 #
-# Plugin version
-my( $version ) = "0.0.1";
+#
 package Plugin;
 use strict;
 use warnings;
 no warnings 'redefine';
+# Plugin version
+my( $version ) = "0.0.0.1";
 #############################################################################
 #
 # Constructor
@@ -60,11 +61,11 @@ sub new
 				};
 	$self->{_optional} = 
 				{ 	
-					#maxsize=>"Maximum bytes for copy, will no copy if larger.",
+					#maxsize=>"Maximum bytes for copy, will not copy if larger.",
 					histdirs=>"Numeric value indicating the number of historical copies to be kept on destination. (A value of -1 creates a new folder for every run.)",
 					options=>"Options to pass to the \"rsync\" command used to copy the files.",
 					excludelist=>"List of files/folders to exclude from copy.",
-					mtime=>"[n] Exclude by time. If the integer n does not have sign this means exactly n 24-hour periods (days) ago, 0 means today.+n: if it has plus sing, then it means \"more then n 24-hour periods (days) ago\", or older then n, if it has the minus sign, then it means less than n 24-hour periods (days) ago (-n), or younger then n. Can be used with excludelist=."
+					mtime=>"[n] Exclude by time. If the integer n does not have sign this means exactly n 24-hour periods (days) ago, 0 means today.+n: if it has plus sign, then it means \"more then n 24-hour periods (days) ago\", or older then n, if it has the minus sign, then it means less than n 24-hour periods (days) ago (-n), or younger then n. Can be used with excludelist=."
 				};
 	$self->{_help} = "Copy files from multiple sources to destination. Complete path is used to recreate dirctory structure on destination.";
 	bless( $self, $class );
